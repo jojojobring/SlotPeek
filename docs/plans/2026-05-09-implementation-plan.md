@@ -4,9 +4,9 @@
 
 **Goal:** Implement the SlotPeek WoW addon as specified in `DESIGN.md` — a hover-popout for character pane equipment slots that lists matching bag/bank items with Pawn scoring, click-to-equip, and live model preview.
 
-**Architecture:** Ace3-based addon (AceAddon, AceEvent, AceDB, AceConfig, AceConsole, AceGUI), embedded library set, hard dependency on Pawn. Seven runtime modules: `Core`, `DB`, `BagIndex`, `PawnAdapter`, `CombatGuard`, `Popout`, `Config`. Combat-lockdown handled via a `RunSafe` wrapper that defers secure operations to `PLAYER_REGEN_ENABLED`.
+**Architecture:** Ace3-based addon (AceAddon, AceEvent, AceDB, AceConfig, AceConsole, AceGUI), hard dependencies on Pawn and the standalone Ace3 addon. Seven runtime modules: `Core`, `DB`, `BagIndex`, `PawnAdapter`, `CombatGuard`, `Popout`, `Config`. Combat-lockdown handled via a `RunSafe` wrapper that defers secure operations to `PLAYER_REGEN_ENABLED`.
 
-**Tech Stack:** Lua 5.1, WoW BCC Anniversary 2.5.5 client (interface `20505`), Ace3 (embedded), Pawn (external dependency).
+**Tech Stack:** Lua 5.1, WoW BCC Anniversary 2.5.5 client (interface `20505`), Ace3 (standalone addon, declared dep), Pawn (external dependency).
 
 **Repo:** `C:\Program Files (x86)\World of Warcraft\_anniversary_\Interface\AddOns\SlotPeek\` — git initialized, `main` branch, origin `git@github.com:jojojobring/SlotPeek.git`.
 
@@ -32,17 +32,7 @@ For tasks marked **"Test: in-game smoke,"** the verification step is "follow the
 
 ```
 SlotPeek/
-├── SlotPeek.toc                     # interface 20505, deps: Pawn
-├── Libs/                            # embedded Ace3
-│   ├── Libs.xml                     # <Include>/<Script> manifest
-│   ├── LibStub/
-│   ├── CallbackHandler-1.0/
-│   ├── AceAddon-3.0/
-│   ├── AceEvent-3.0/
-│   ├── AceConsole-3.0/
-│   ├── AceDB-3.0/
-│   ├── AceConfig-3.0/
-│   └── AceGUI-3.0/
+├── SlotPeek.toc                     # interface 20505, deps: Pawn, Ace3
 ├── Core.lua                         # AceAddon scaffold, /slotpeek slash command
 ├── DB.lua                           # AceDB defaults
 ├── CombatGuard.lua                  # RunSafe + IsLocked
@@ -60,54 +50,15 @@ SlotPeek/
 └── docs/plans/2026-05-09-implementation-plan.md   # this file
 ```
 
+Ace3 libraries are loaded by the separate `Ace3` addon (declared as a hard dependency); SlotPeek calls them via `LibStub`.
+
 ---
 
-## Task 0: Obtain Ace3 libraries
+## Task 0: SKIPPED — depend on standalone Ace3 addon
 
-**Files:**
-- Create: `Libs/LibStub/LibStub.lua`
-- Create: `Libs/CallbackHandler-1.0/CallbackHandler-1.0.{lua,xml}`
-- Create: `Libs/AceAddon-3.0/AceAddon-3.0.{lua,xml}`
-- Create: `Libs/AceEvent-3.0/AceEvent-3.0.{lua,xml}`
-- Create: `Libs/AceConsole-3.0/AceConsole-3.0.{lua,xml}`
-- Create: `Libs/AceDB-3.0/AceDB-3.0.{lua,xml}`
-- Create: `Libs/AceConfig-3.0/` (recursive — includes AceConfigCmd, AceConfigDialog, AceConfigRegistry)
-- Create: `Libs/AceGUI-3.0/` (recursive — many widgets)
-- Create: `Libs/Libs.xml`
+The user has the standalone Ace3 addon installed at `Interface/AddOns/Ace3/`. SlotPeek does not embed its own copy of Ace3; instead it declares a hard `## Dependencies: Pawn, Ace3` in the TOC (Task 1) and uses the libraries via `LibStub`. No `Libs/` folder, no `Libs.xml` needed.
 
-- [ ] **Step 1: Download Ace3 from CurseForge**
-
-Two options:
-
-**(Preferred)** Download the standalone Ace3 zip from `https://www.curseforge.com/wow/addons/ace3/files` (latest release). Extract. Inside, find the `Ace3/` folder containing `LibStub/`, `CallbackHandler-1.0/`, etc. Copy each library subfolder into `SlotPeek/Libs/`.
-
-**(Fallback)** Copy from an installed addon that embeds Ace3, e.g. `..\Bartender4\libs\` or `..\DBM-Core\Libs\`. Copy `LibStub/`, `CallbackHandler-1.0/`, `AceAddon-3.0/`, `AceEvent-3.0/`, `AceConsole-3.0/`, `AceDB-3.0/`, `AceConfig-3.0/` (plus its sub-libraries `AceConfigCmd-3.0`, `AceConfigDialog-3.0`, `AceConfigRegistry-3.0` if separate folders), and `AceGUI-3.0/` into `SlotPeek/Libs/`.
-
-- [ ] **Step 2: Create `Libs/Libs.xml`**
-
-```xml
-<Ui xmlns="http://www.blizzard.com/wow/ui/">
-  <Script file="LibStub\LibStub.lua"/>
-  <Include file="CallbackHandler-1.0\CallbackHandler-1.0.xml"/>
-  <Include file="AceAddon-3.0\AceAddon-3.0.xml"/>
-  <Include file="AceEvent-3.0\AceEvent-3.0.xml"/>
-  <Include file="AceConsole-3.0\AceConsole-3.0.xml"/>
-  <Include file="AceDB-3.0\AceDB-3.0.xml"/>
-  <Include file="AceConfig-3.0\AceConfig-3.0.xml"/>
-  <Include file="AceGUI-3.0\AceGUI-3.0.xml"/>
-</Ui>
-```
-
-- [ ] **Step 3: Verify file count**
-
-Run: `find Libs -name "*.lua" | wc -l` — expect 30+ files (varies by Ace3 version).
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add Libs
-git commit -m "Add embedded Ace3 libraries"
-```
+If you ever want SlotPeek to be distributable as a self-contained addon, revisit this decision: download Ace3 from CurseForge and copy each library subfolder into `SlotPeek/Libs/`, then add a `Libs/Libs.xml` manifest and an `Libs\Libs.xml` entry as the first line of the TOC's load order.
 
 ---
 
@@ -125,11 +76,9 @@ git commit -m "Add embedded Ace3 libraries"
 ## Notes: Hover an equipment slot to see all matching items in your bags and bank, scored by Pawn.
 ## Author: jojojobring
 ## Version: 0.1.0-dev
-## Dependencies: Pawn
+## Dependencies: Pawn, Ace3
 ## SavedVariables: SlotPeekDB
 ## X-License: MIT
-
-Libs\Libs.xml
 
 Core.lua
 ```
@@ -560,7 +509,7 @@ end
 
 - [ ] **Step 4: Add `AceEvent-3.0` SendMessage capability**
 
-Confirmed already — `AceEvent-3.0` provides `SendMessage` since SlotPeek embeds it as a mixin. No code change needed.
+Confirmed already — `AceEvent-3.0` provides `SendMessage` and SlotPeek mixes it in via `NewAddon(..., "AceEvent-3.0", ...)`. No code change needed.
 
 - [ ] **Step 5: Add to TOC**
 
