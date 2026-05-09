@@ -1,0 +1,10 @@
+## Interface: 20505
+## Title: SlotPeek
+## Notes: Hover an equipment slot to see all matching items in your bags and bank, scored by Pawn.
+## Author: jojojobring
+## Version: 0.1.0-dev
+## Dependencies: Pawn, Ace3
+## SavedVariables: SlotPeekDB
+## X-License: MIT
+
+Core.lua
