@@ -265,7 +265,20 @@ function Popout:Show(slot, invSlotID)
   frame.header:SetText(("%d item%s"):format(#cands, #cands == 1 and "" or "s"))
 
   frame:ClearAllPoints()
-  frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
+  if GameTooltip:IsShown() and GameTooltip:GetOwner() == slot then
+    -- Anchor below the tooltip so they stack rather than overlap.
+    -- Snapshot screen coords (don't anchor to GameTooltip directly — it
+    -- would follow when GameTooltip moves to bag items, etc).
+    local left = GameTooltip:GetLeft()
+    local bottom = GameTooltip:GetBottom()
+    if left and bottom then
+      frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, bottom - 2)
+    else
+      frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
+    end
+  else
+    frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
+  end
   frame:Show()
 end
 
