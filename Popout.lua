@@ -41,15 +41,24 @@ local MAX_ROWS = 30
 local hoverTimer
 local dismissTimer
 
--- Returns true if a slot is on the left side of the character pane.
-local function slotIsLeftSide(slot)
-  if not (slot and CharacterModelFrame) then return false end
-  local sl = slot:GetLeft()
-  local mc = CharacterModelFrame:GetLeft()
-  if not sl or not mc then return false end
-  local slotCenter = sl + slot:GetWidth() / 2
-  local modelCenter = mc + CharacterModelFrame:GetWidth() / 2
-  return slotCenter < modelCenter
+-- Combat-safe model preview helpers.
+-- Both helpers no-op when InCombatLockdown() is true so they never trigger
+-- "Interface action failed because of an AddOn" during combat.
+-- `frame` is nil at define-time but captured by reference — safe because
+-- closures are only called after Popout:CreateFrame() has run.
+local function showPreview(itemLink)
+  if InCombatLockdown() then return end
+  if not frame or not frame.previewModel then return end
+  if CharacterModelFrame then CharacterModelFrame:Hide() end
+  frame.previewModel:Show()
+  frame.previewModel:SetUnit("player")
+  frame.previewModel:TryOn(itemLink)
+end
+
+local function hidePreview()
+  if InCombatLockdown() then return end
+  if frame and frame.previewModel then frame.previewModel:Hide() end
+  if CharacterModelFrame then CharacterModelFrame:Show() end
 end
 
 local function makePreviewRow(parent, index)
@@ -95,23 +104,17 @@ local function makePreviewRow(parent, index)
     if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
     -- 4. Swap the live model for our preview (3D models don't occlude via
     --    frame strata, so we hide the original to avoid double-rendering).
-    if frame.previewModel then
-      if CharacterModelFrame then CharacterModelFrame:Hide() end
-      frame.previewModel:Show()
-      frame.previewModel:SetUnit("player")
-      frame.previewModel:TryOn(self.itemLink)
-    end
+    showPreview(self.itemLink)
   end)
   row:SetScript("OnLeave", function(self)
     -- Hide candidate tooltip; keep equipped tooltip
     GameTooltip:Hide()
     -- Restore the live model
-    if frame.previewModel then frame.previewModel:Hide() end
-    if CharacterModelFrame then CharacterModelFrame:Show() end
+    hidePreview()
     -- Schedule dismiss in case cursor goes directly off-popout from this row.
     if dismissTimer then dismissTimer:Cancel() end
     dismissTimer = C_Timer.NewTimer(0.2, function()
-      if not frame:IsMouseOver() then Popout:Hide() end
+      if frame:IsShown() and not frame:IsMouseOver() then Popout:Hide() end
       dismissTimer = nil
     end)
   end)
@@ -183,7 +186,7 @@ function Popout:CreateFrame()
   frame:SetScript("OnLeave", function()
     if dismissTimer then dismissTimer:Cancel() end
     dismissTimer = C_Timer.NewTimer(0.2, function()
-      if not frame:IsMouseOver() then Popout:Hide() end
+      if frame:IsShown() and not frame:IsMouseOver() then Popout:Hide() end
       dismissTimer = nil
     end)
   end)
@@ -227,24 +230,18 @@ function Popout:CreateFrame()
       GameTooltip:SetHyperlink(pr.itemLink)
       GameTooltip:Show()
       -- 3D model preview
-      if frame.previewModel then
-        if CharacterModelFrame then CharacterModelFrame:Hide() end
-        frame.previewModel:Show()
-        frame.previewModel:SetUnit("player")
-        frame.previewModel:TryOn(pr.itemLink)
-      end
+      showPreview(pr.itemLink)
       -- Cancel any pending dismiss
       if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
     end)
 
     clickRow:HookScript("OnLeave", function(self)
       GameTooltip:Hide()
-      if frame.previewModel then frame.previewModel:Hide() end
-      if CharacterModelFrame then CharacterModelFrame:Show() end
+      hidePreview()
       -- Schedule dismiss in case cursor leaves the popout from this row.
       if dismissTimer then dismissTimer:Cancel() end
       dismissTimer = C_Timer.NewTimer(0.2, function()
-        if not frame:IsMouseOver() then Popout:Hide() end
+        if frame:IsShown() and not frame:IsMouseOver() then Popout:Hide() end
         dismissTimer = nil
       end)
     end)
@@ -293,7 +290,7 @@ function Popout:OnSlotLeave(slot)
   if hoverTimer then hoverTimer:Cancel(); hoverTimer = nil end
   if dismissTimer then dismissTimer:Cancel() end
   dismissTimer = C_Timer.NewTimer(0.2, function()
-    if not frame:IsMouseOver() then Popout:Hide() end
+    if frame:IsShown() and not frame:IsMouseOver() then Popout:Hide() end
     dismissTimer = nil
   end)
 end
@@ -420,12 +417,12 @@ function Popout:Show(slot, invSlotID)
 end
 
 function Popout:RevertModel()
-  -- Hide our preview, restore the live CharacterModelFrame.
-  if frame and frame.previewModel then frame.previewModel:Hide() end
-  if CharacterModelFrame then CharacterModelFrame:Show() end
+  hidePreview()
 end
 
 function Popout:Hide()
+  if hoverTimer then hoverTimer:Cancel(); hoverTimer = nil end
+  if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
   self:RevertModel()
   if equippedTip then equippedTip:Hide() end
   if Popout._currentSlot and GameTooltip:GetOwner() == frame then
