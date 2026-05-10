@@ -14,7 +14,9 @@ function PawnAdapter:ScaleName()
     return SlotPeek.db.profile.scaleName
   end
   if not PawnGetAllScales then return nil end
-  for name, _ in pairs(PawnGetAllScales()) do
+  -- PawnGetAllScales returns an array of scale name strings (uses tinsert),
+  -- so iterate values, not keys.
+  for _, name in ipairs(PawnGetAllScales()) do
     if PawnIsScaleVisible(name) then return name end
   end
   return nil
