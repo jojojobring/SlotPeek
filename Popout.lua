@@ -72,11 +72,15 @@ local function makePreviewRow(parent, index)
       equippedTip:SetInventoryItem("player", Popout._currentInvSlot)
       equippedTip:Show()
     end
-    -- 2. Show candidate tooltip via GameTooltip, anchored to right of popout
-    --    (using GameTooltip lets Pawn's hooks fire so its values appear)
+    -- 2. Show candidate tooltip via GameTooltip, anchored to the outside
+    --    of the popout (further from the character model).
     GameTooltip:SetOwner(parent, "ANCHOR_NONE")
     GameTooltip:ClearAllPoints()
-    GameTooltip:SetPoint("TOPLEFT", parent, "TOPRIGHT", 4, 0)
+    if parent.popoutOnLeft then
+      GameTooltip:SetPoint("TOPRIGHT", parent, "TOPLEFT", -4, 0)
+    else
+      GameTooltip:SetPoint("TOPLEFT", parent, "TOPRIGHT", 4, 0)
+    end
     GameTooltip:SetHyperlink(self.itemLink)
     GameTooltip:Show()
     -- 3. Cancel any pending dismiss
@@ -254,18 +258,18 @@ function Popout:Show(slot, invSlotID)
   frame.header:SetText(("%s — %d items"):format(
     slot:GetName():gsub("Character",""):gsub("Slot",""), #cands))
 
+  -- Anchor outside the character pane on the side the slot is on, so the
+  -- popout doesn't cover the character model.
   frame:ClearAllPoints()
-  if GameTooltip:IsShown() and GameTooltip:GetOwner() == slot then
-    -- Snapshot tooltip's screen position; anchor to UIParent at those absolute
-    -- coords so the popout doesn't follow GameTooltip when it moves to other
-    -- frames (e.g. a bag item the cursor wanders to).
-    local left = GameTooltip:GetLeft()
-    local bottom = GameTooltip:GetBottom()
-    if left and bottom then
-      frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, bottom - 2)
-    else
-      frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
-    end
+  local slotCenter = (slot:GetLeft() or 0) + slot:GetWidth() / 2
+  local modelCenter
+  if CharacterModelFrame then
+    modelCenter = (CharacterModelFrame:GetLeft() or 0) + CharacterModelFrame:GetWidth() / 2
+  end
+  local popoutOnLeft = modelCenter and slotCenter < modelCenter
+  frame.popoutOnLeft = popoutOnLeft
+  if popoutOnLeft then
+    frame:SetPoint("TOPRIGHT", slot, "TOPLEFT", -8, 0)
   else
     frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
   end
