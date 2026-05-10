@@ -88,8 +88,8 @@ function Popout:Show(slot, invSlotID)
   frame.header:SetText(("%s — %d items"):format(slot:GetName():gsub("Character",""):gsub("Slot",""), #cands))
   frame:ClearAllPoints()
   if GameTooltip:IsShown() and GameTooltip:GetOwner() == slot then
-    -- anchor below tooltip
-    frame:SetPoint("TOPRIGHT", GameTooltip, "BOTTOMRIGHT", 0, -2)
+    -- anchor below tooltip, left-aligned with it
+    frame:SetPoint("TOPLEFT", GameTooltip, "BOTTOMLEFT", 0, -2)
   else
     -- empty slot — anchor next to slot frame
     frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
