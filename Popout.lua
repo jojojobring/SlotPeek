@@ -4,6 +4,15 @@ SlotPeek.Popout = Popout
 
 local frame
 local equippedTip
+
+-- Debug breadcrumbs: gated by SlotPeek.db.profile.debug (toggle with
+-- `/run SlotPeek.db.profile.debug = true; ReloadUI()`). Prints to chat so
+-- we can see the last successful step before "Interface action failed".
+local function dbg(msg)
+  if SlotPeek.db and SlotPeek.db.profile and SlotPeek.db.profile.debug then
+    SlotPeek:Print("[combat-dbg] " .. msg)
+  end
+end
 local SLOT_FRAMES = {
   CharacterHeadSlot, CharacterNeckSlot, CharacterShoulderSlot, CharacterBackSlot,
   CharacterChestSlot, CharacterWristSlot, CharacterHandsSlot, CharacterWaistSlot,
@@ -279,6 +288,11 @@ end
 function Popout:OnSlotEnter(slot)
   local invSlotID = SLOT_TO_INVSLOT[slot:GetName()]
   if not invSlotID then return end
+  if InCombatLockdown() then
+    dbg(("OnSlotEnter: %s invSlot=%d inCombat=true frameProtected=%s")
+        :format(slot:GetName() or "?", invSlotID,
+                tostring(frame and frame:IsProtected())))
+  end
   if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
   if hoverTimer then hoverTimer:Cancel() end
   if equippedTip then equippedTip:Hide() end
@@ -296,15 +310,19 @@ function Popout:OnSlotLeave(slot)
 end
 
 function Popout:Show(slot, invSlotID)
+  local inCombat = InCombatLockdown()
+  if inCombat then dbg("Show ENTER inv=" .. tostring(invSlotID)) end
   if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
   -- Hide stale equipped tooltip from a previous slot before re-showing.
   if equippedTip then equippedTip:Hide() end
+  if inCombat then dbg("Show: equippedTip hidden") end
   -- Track the last-shown slot so PLAYER_REGEN_ENABLED can re-run Show to
   -- refresh secure attributes now that combat lockdown has lifted.
   self._lastSlot = slot
   self._lastInvSlot = invSlotID
   -- Show the combat badge when the secure click overlay is locked out.
   frame.combatBadge:SetShown(SlotPeek.CombatGuard:IsLocked())
+  if inCombat then dbg("Show: combatBadge SetShown") end
   Popout._currentSlot = slot
   Popout._currentInvSlot = invSlotID
   local cands = SlotPeek.BagIndex:GetCandidates(invSlotID)
@@ -319,6 +337,7 @@ function Popout:Show(slot, invSlotID)
   local equippedScore = equipped and SlotPeek.PawnAdapter:Score(equipped)
 
   for i, row in ipairs(frame.rows) do row:Hide() end
+  if inCombat then dbg("Show: rows hidden #cands=" .. #cands) end
 
   local n = math.min(#cands, MAX_ROWS)
   for i = 1, n do
@@ -392,10 +411,14 @@ function Popout:Show(slot, invSlotID)
     frame.divider:Hide()
   end
 
+  if inCombat then dbg("Show: row loop done n=" .. n) end
   frame:SetHeight(28 + n * (ROW_HEIGHT + 2) + 8)
+  if inCombat then dbg("Show: SetHeight done") end
   frame.header:SetText(("%d item%s"):format(#cands, #cands == 1 and "" or "s"))
+  if inCombat then dbg("Show: header set") end
 
   frame:ClearAllPoints()
+  if inCombat then dbg("Show: ClearAllPoints done") end
   if GameTooltip:IsShown() and GameTooltip:GetOwner() == slot then
     -- Anchor below the tooltip so they stack rather than overlap.
     -- Snapshot screen coords (don't anchor to GameTooltip directly — it
@@ -410,12 +433,15 @@ function Popout:Show(slot, invSlotID)
   else
     frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
   end
+  if inCombat then dbg("Show: about to frame:Show, IsProtected=" .. tostring(frame:IsProtected())) end
   frame:Show()
+  if inCombat then dbg("Show: frame:Show returned, IsShown=" .. tostring(frame:IsShown())) end
   -- Show the secure overlay only out of combat. RunSafe queues during combat;
   -- the overlay stays hidden, so clicks during combat are no-ops.
   SlotPeek.CombatGuard:RunSafe(function()
     if frame.clickContainer then frame.clickContainer:Show() end
   end)
+  if inCombat then dbg("Show EXIT") end
 end
 
 function Popout:RevertModel()
