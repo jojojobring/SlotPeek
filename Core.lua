@@ -9,6 +9,7 @@ end
 function SlotPeek:OnEnable()
   self:RegisterChatCommand("slotpeek", "HandleSlash")
   self.CombatGuard:OnEnable()
+  self.Popout:OnEnable()
 end
 
 function SlotPeek:HandleSlash(input)

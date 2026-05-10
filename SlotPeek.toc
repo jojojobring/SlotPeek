@@ -12,4 +12,5 @@ DB.lua
 CombatGuard.lua
 PawnAdapter.lua
 BagIndex.lua
+Popout.lua
 tests\assertions.lua
