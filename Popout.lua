@@ -208,6 +208,10 @@ function Popout:CreateFrame()
   -- (secure → secure, fine), NOT to frame.rows[i] (which would taint frame).
   frame.clickContainer = CreateFrame("Frame", nil, UIParent)
   frame.clickContainer:SetFrameStrata(frame:GetFrameStrata())
+  -- Force clickContainer ABOVE frame within DIALOG strata so mouse events
+  -- on the row area always reach clickRow (secure) and never the underlying
+  -- preview row (which has no OnClick).
+  frame.clickContainer:SetFrameLevel(frame:GetFrameLevel() + 10)
   frame.clickContainer:SetSize(ROW_WIDTH + 16, 40)
   frame.clickContainer:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
   frame.clickContainer:Hide()
@@ -445,12 +449,13 @@ function Popout:Show(slot, invSlotID)
         :format(tostring(cc:IsShown()), cc:GetFrameLevel() or -1,
                 cc:GetLeft() or 0, cc:GetTop() or 0,
                 cc:GetWidth() or 0, cc:GetHeight() or 0))
-      SlotPeek:Print(("[dbg] cr1 shown=%s pos=%.0f,%.0f size=%.0fx%.0f mouseEn=%s type=%s")
+      SlotPeek:Print(("[dbg] cr1 shown=%s pos=%.0f,%.0f size=%.0fx%.0f mouseEn=%s type=%s mt=%s")
         :format(tostring(r1:IsShown()),
                 r1:GetLeft() or 0, r1:GetTop() or 0,
                 r1:GetWidth() or 0, r1:GetHeight() or 0,
                 tostring(r1:IsMouseEnabled()),
-                tostring(r1:GetAttribute("type"))))
+                tostring(r1:GetAttribute("type")),
+                tostring(r1:GetAttribute("macrotext"))))
       SlotPeek:Print(("[dbg] frame lvl=%d, cc lvl=%d, frame:IsProtected=%s")
         :format(frame:GetFrameLevel() or -1, cc:GetFrameLevel() or -1,
                 tostring(frame:IsProtected())))
