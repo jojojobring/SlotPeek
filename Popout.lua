@@ -33,7 +33,7 @@ local SLOT_TO_INVSLOT = {
 }
 
 local ROW_HEIGHT = 24
-local ROW_WIDTH = 200
+local ROW_WIDTH = 100
 local MAX_ROWS = 30
 
 -- Timer state — declared early so closures inside makePreviewRow / CreateFrame
@@ -61,10 +61,11 @@ local function makePreviewRow(parent, index)
   row.icon:SetSize(20, 20)
   row.icon:SetPoint("LEFT", 0, 0)
 
-  row.name = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.name:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
-  row.name:SetWidth(ROW_WIDTH - 80)
-  row.name:SetJustifyH("LEFT")
+  -- Rarity-colored border around the icon (set by Show via vertex color).
+  row.iconBorder = row:CreateTexture(nil, "OVERLAY")
+  row.iconBorder:SetTexture("Interface\\Common\\WhiteIconFrame")
+  row.iconBorder:SetSize(22, 22)
+  row.iconBorder:SetPoint("CENTER", row.icon, "CENTER")
 
   row.delta = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.delta:SetPoint("RIGHT", -4, 0)
@@ -248,8 +249,7 @@ function Popout:Show(slot, invSlotID)
     local row = frame.rows[i]
     row.icon:SetTexture(icon or c.icon)
     local r, g, b = GetItemQualityColor(quality or 1)
-    row.name:SetText(c.itemLink:match("%[(.-)%]") or "?")
-    row.name:SetTextColor(r, g, b)
+    row.iconBorder:SetVertexColor(r, g, b, 1)
 
     local score = SlotPeek.PawnAdapter:Score(c.itemLink)
     if score and equippedScore and equippedScore > 0 then
@@ -276,8 +276,7 @@ function Popout:Show(slot, invSlotID)
   end
 
   frame:SetHeight(28 + n * (ROW_HEIGHT + 2) + 8)
-  frame.header:SetText(("%s — %d items"):format(
-    slot:GetName():gsub("Character",""):gsub("Slot",""), #cands))
+  frame.header:SetText(("%d item%s"):format(#cands, #cands == 1 and "" or "s"))
 
   -- Anchor outside the character pane on the side the slot is on, so the
   -- popout doesn't cover the character model.
