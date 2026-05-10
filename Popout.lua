@@ -431,7 +431,6 @@ function Popout:Show(slot, invSlotID)
     if w and h then frame.clickContainer:SetSize(w, h) end
     frame.clickContainer:Show()
   end)
-  if inCombat then dbg("Show EXIT") end
 end
 
 function Popout:RevertModel()
