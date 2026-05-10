@@ -82,10 +82,12 @@ local function makePreviewRow(parent, index)
     -- 3. Cancel any pending dismiss
     if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
     -- 4. Preview the item on our overlay DressUpModel
+    --    Show first, then SetUnit + TryOn. TryOn on a hidden/uninitialized
+    --    model can silently no-op while the model is still loading.
     if frame.previewModel then
+      frame.previewModel:Show()
       frame.previewModel:SetUnit("player")
       frame.previewModel:TryOn(self.itemLink)
-      frame.previewModel:Show()
     end
   end)
   row:SetScript("OnLeave", function(self)
@@ -141,6 +143,8 @@ function Popout:CreateFrame()
     frame.previewModel:SetAllPoints(CharacterModelFrame)
     frame.previewModel:SetFrameStrata(CharacterModelFrame:GetFrameStrata())
     frame.previewModel:SetFrameLevel(CharacterModelFrame:GetFrameLevel() + 1)
+    -- Pre-initialize the model so first TryOn doesn't race against load.
+    frame.previewModel:SetUnit("player")
     frame.previewModel:Hide()
   end
 
