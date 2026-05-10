@@ -158,6 +158,9 @@ function Popout:OnSlotEnter(slot)
   if not invSlotID then return end
   if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
   if hoverTimer then hoverTimer:Cancel() end
+  -- Hide our equipped tooltip when cursor returns to a slot — Blizzard's
+  -- standard tooltip takes over.
+  if equippedTip then equippedTip:Hide() end
   local delay = (SlotPeek.db and SlotPeek.db.profile.hoverDelay) or 0.15
   hoverTimer = C_Timer.NewTimer(delay, function() self:Show(slot, invSlotID) end)
 end
@@ -173,6 +176,8 @@ end
 
 function Popout:Show(slot, invSlotID)
   if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
+  -- Hide stale equipped tooltip from a previous slot before re-showing.
+  if equippedTip then equippedTip:Hide() end
   Popout._currentSlot = slot
   Popout._currentInvSlot = invSlotID
   local cands = SlotPeek.BagIndex:GetCandidates(invSlotID)
