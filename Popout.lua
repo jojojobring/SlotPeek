@@ -87,9 +87,11 @@ local function makePreviewRow(parent, index)
     end
   end)
   row:SetScript("OnLeave", function(self)
-    -- Hide candidate tooltip; keep equipped tooltip
+    -- Hide candidate tooltip; keep equipped tooltip.
+    -- Do NOT revert the model here — successive TryOn calls between rows
+    -- naturally replace the preview, and reverting causes jitter. The model
+    -- is reverted on Popout:Hide() and on PLAYER_EQUIPMENT_CHANGED.
     GameTooltip:Hide()
-    Popout:RevertModel()
     -- Schedule dismiss in case cursor goes directly off-popout from this row.
     if dismissTimer then dismissTimer:Cancel() end
     dismissTimer = C_Timer.NewTimer(0.2, function()
