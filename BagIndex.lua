@@ -4,6 +4,7 @@ SlotPeek.BagIndex = BagIndex
 
 local candidateCache = {}
 local refreshScheduled = false
+local bankOpen = false
 
 function BagIndex:Refresh()
   candidateCache = {}
@@ -138,10 +139,48 @@ function BagIndex:IsUsable(itemLink)
   return true
 end
 
+function BagIndex:OnBankOpen()
+  bankOpen = true
+  self:SnapshotBank()
+end
+
+function BagIndex:OnBankClose()
+  bankOpen = false
+end
+
+function BagIndex:SnapshotBank()
+  local cache = SlotPeek.db.char.bankCache
+  -- clear stale entries
+  for k in pairs(cache) do cache[k] = nil end
+  -- main bank container
+  local mainSlots = C_Container.GetContainerNumSlots(BANK_CONTAINER) or 0
+  for slot = 1, mainSlots do
+    local info = C_Container.GetContainerItemInfo(BANK_CONTAINER, slot)
+    if info and info.hyperlink then
+      cache[BANK_CONTAINER] = cache[BANK_CONTAINER] or {}
+      cache[BANK_CONTAINER][slot] = info.hyperlink
+    end
+  end
+  -- bank bags
+  for bag = NUM_BAG_SLOTS + 1, NUM_BAG_SLOTS + NUM_BANKBAGSLOTS do
+    local n = C_Container.GetContainerNumSlots(bag) or 0
+    for slot = 1, n do
+      local info = C_Container.GetContainerItemInfo(bag, slot)
+      if info and info.hyperlink then
+        cache[bag] = cache[bag] or {}
+        cache[bag][slot] = info.hyperlink
+      end
+    end
+  end
+  self:Refresh()
+end
+
 function BagIndex:OnEnable()
   SlotPeek:RegisterEvent("BAG_UPDATE_DELAYED", function() self:ScheduleRefresh() end)
   SlotPeek:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", function() self:ScheduleRefresh() end)
   SlotPeek:RegisterEvent("PLAYERBANKSLOTS_CHANGED", function() self:ScheduleRefresh() end)
+  SlotPeek:RegisterEvent("BANKFRAME_OPENED", function() self:OnBankOpen() end)
+  SlotPeek:RegisterEvent("BANKFRAME_CLOSED", function() self:OnBankClose() end)
 end
 
 function BagIndex:GetCandidates(invSlotID)
@@ -186,7 +225,29 @@ function BagIndex:GetCandidates(invSlotID)
   end
 
   for _, e in ipairs(self:ScanBags()) do consider(e) end
-  -- bank scan in Task 17
+
+  -- bank: live if open, cached otherwise
+  if bankOpen then
+    local function scanBag(bag)
+      local n = C_Container.GetContainerNumSlots(bag) or 0
+      for slot = 1, n do
+        local info = C_Container.GetContainerItemInfo(bag, slot)
+        if info and info.hyperlink then
+          consider({ itemLink = info.hyperlink, bag = bag, slot = slot,
+                     itemID = info.itemID, icon = info.iconFileID, source = "bank" })
+        end
+      end
+    end
+    scanBag(BANK_CONTAINER)
+    for bag = NUM_BAG_SLOTS + 1, NUM_BAG_SLOTS + NUM_BANKBAGSLOTS do scanBag(bag) end
+  else
+    for bag, slots in pairs(SlotPeek.db.char.bankCache) do
+      for slot, link in pairs(slots) do
+        consider({ itemLink = link, bag = bag, slot = slot, source = "bank" })
+      end
+    end
+  end
+
   candidateCache[invSlotID] = result
   return result
 end

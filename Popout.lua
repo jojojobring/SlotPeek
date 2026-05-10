@@ -145,6 +145,11 @@ function Popout:CreateFrame()
     frame.rows[i]:Hide()
   end
 
+  frame.divider = frame:CreateTexture(nil, "OVERLAY")
+  frame.divider:SetColorTexture(0.5, 0.5, 0.5, 0.5)
+  frame.divider:SetHeight(1)
+  frame.divider:Hide()
+
   equippedTip = CreateFrame("GameTooltip", "SlotPeekEquippedTip", UIParent, "GameTooltipTemplate")
 
   -- BCC's CharacterModelFrame is a PlayerModel, not a DressUpModel — it has
@@ -293,6 +298,11 @@ function Popout:Show(slot, invSlotID)
   local cands = SlotPeek.BagIndex:GetCandidates(invSlotID)
   SlotPeek.BagIndex:SortByScore(cands)
 
+  local firstBankIndex
+  for i, c in ipairs(cands) do
+    if c.source == "bank" then firstBankIndex = i; break end
+  end
+
   local equipped = GetInventoryItemLink("player", invSlotID)
   local equippedScore = equipped and SlotPeek.PawnAdapter:Score(equipped)
 
@@ -356,6 +366,16 @@ function Popout:Show(slot, invSlotID)
     SlotPeek.CombatGuard:RunSafe(function()
       frame.clickRows[i]:Hide()
     end)
+  end
+
+  if firstBankIndex and firstBankIndex <= n then
+    local row = frame.rows[firstBankIndex]
+    frame.divider:ClearAllPoints()
+    frame.divider:SetPoint("TOPLEFT", row, "TOPLEFT", -4, 1)
+    frame.divider:SetPoint("TOPRIGHT", row, "TOPRIGHT", 4, 1)
+    frame.divider:Show()
+  else
+    frame.divider:Hide()
   end
 
   frame:SetHeight(28 + n * (ROW_HEIGHT + 2) + 8)
