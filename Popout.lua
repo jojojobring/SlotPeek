@@ -359,11 +359,13 @@ function Popout:Show(slot, invSlotID)
     local clickRow = frame.clickRows[i]
     SlotPeek.CombatGuard:RunSafe(function()
       if c.source == "bags" then
-        -- Use a macro: "/use <bag> <slot>" reliably equips by container
-        -- position in BCC. type="item" with "<bag> <slot>" syntax is not
-        -- consistently honored for equippables in this client.
+        -- "/use <bag> <slot>" reliably equips by container position in BCC.
+        -- [nocombat] guard: if combat starts after the popout was opened
+        -- (when the macrotext was last set), the macro becomes a no-op
+        -- instead of triggering a protected equip → "Interface action failed".
         clickRow:SetAttribute("type", "macro")
-        clickRow:SetAttribute("macrotext", "/use " .. c.bag .. " " .. c.slot)
+        clickRow:SetAttribute("macrotext",
+          "/use [nocombat] " .. c.bag .. " " .. c.slot)
       else
         -- Bank rows: leave type unset so click is a no-op; PostClick toasts.
         clickRow:SetAttribute("type", nil)
