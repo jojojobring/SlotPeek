@@ -139,6 +139,11 @@ function Popout:Attach()
       slot:HookScript("OnLeave", function(s) self:OnSlotLeave(s) end)
     end
   end
+  -- Dismiss the popout if the character pane closes while the cursor is on it.
+  -- (Without this, hidden slots can't fire OnLeave, so the popout would persist.)
+  if CharacterFrame then
+    CharacterFrame:HookScript("OnHide", function() self:Hide() end)
+  end
 end
 
 local hoverTimer
