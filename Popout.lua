@@ -143,9 +143,13 @@ function Popout:Show(slot, invSlotID)
       if pct > 0 then row.delta:SetTextColor(0.4, 1, 0.4)
       elseif pct < 0 then row.delta:SetTextColor(1, 0.5, 0.5)
       else row.delta:SetTextColor(1, 1, 1) end
-    elseif score then
+    elseif score and score ~= 0 then
       row.delta:SetText(tostring(math.floor(score)))
       row.delta:SetTextColor(1, 1, 1)
+    elseif score then
+      -- score returned 0 — Pawn doesn't value this item type for the active scale
+      row.delta:SetText("—")
+      row.delta:SetTextColor(0.7, 0.7, 0.7)
     else
       row.delta:SetText("…")
       row.delta:SetTextColor(0.7, 0.7, 0.7)
@@ -161,7 +165,16 @@ function Popout:Show(slot, invSlotID)
 
   frame:ClearAllPoints()
   if GameTooltip:IsShown() and GameTooltip:GetOwner() == slot then
-    frame:SetPoint("TOPLEFT", GameTooltip, "BOTTOMLEFT", 0, -2)
+    -- Snapshot tooltip's screen position; anchor to UIParent at those absolute
+    -- coords so the popout doesn't follow GameTooltip when it moves to other
+    -- frames (e.g. a bag item the cursor wanders to).
+    local left = GameTooltip:GetLeft()
+    local bottom = GameTooltip:GetBottom()
+    if left and bottom then
+      frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, bottom - 2)
+    else
+      frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
+    end
   else
     frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
   end
