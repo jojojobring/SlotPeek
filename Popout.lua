@@ -41,6 +41,29 @@ local MAX_ROWS = 30
 local hoverTimer
 local dismissTimer
 
+-- Render a row's delta text from a (candidate score, equipped score) pair.
+-- Extracted so the PAWN_RESOLVED handler can patch rows in place when
+-- previously-unresolved items finish loading, without re-running all of Show.
+local function applyDelta(row, score, equippedScore)
+  if score and equippedScore and equippedScore > 0 then
+    local pct = (score - equippedScore) / equippedScore * 100
+    row.delta:SetText(("%+0.1f%%"):format(pct))
+    if pct > 0 then row.delta:SetTextColor(0.4, 1, 0.4)
+    elseif pct < 0 then row.delta:SetTextColor(1, 0.5, 0.5)
+    else row.delta:SetTextColor(1, 1, 1) end
+  elseif score and score ~= 0 then
+    row.delta:SetText(tostring(math.floor(score)))
+    row.delta:SetTextColor(1, 1, 1)
+  elseif score then
+    -- score returned 0 — Pawn doesn't value this item type for the active scale
+    row.delta:SetText("—")
+    row.delta:SetTextColor(0.7, 0.7, 0.7)
+  else
+    row.delta:SetText("…")
+    row.delta:SetTextColor(0.7, 0.7, 0.7)
+  end
+end
+
 -- Combat-safe model preview helpers.
 -- Both helpers no-op when InCombatLockdown() is true so they never trigger
 -- "Interface action failed because of an AddOn" during combat.
@@ -340,23 +363,7 @@ function Popout:Show(slot, invSlotID)
     row.iconBorder:SetVertexColor(r, g, b, 1)
 
     local score = SlotPeek.PawnAdapter:Score(c.itemLink)
-    if score and equippedScore and equippedScore > 0 then
-      local pct = (score - equippedScore) / equippedScore * 100
-      row.delta:SetText(("%+0.1f%%"):format(pct))
-      if pct > 0 then row.delta:SetTextColor(0.4, 1, 0.4)
-      elseif pct < 0 then row.delta:SetTextColor(1, 0.5, 0.5)
-      else row.delta:SetTextColor(1, 1, 1) end
-    elseif score and score ~= 0 then
-      row.delta:SetText(tostring(math.floor(score)))
-      row.delta:SetTextColor(1, 1, 1)
-    elseif score then
-      -- score returned 0 — Pawn doesn't value this item type for the active scale
-      row.delta:SetText("—")
-      row.delta:SetTextColor(0.7, 0.7, 0.7)
-    else
-      row.delta:SetText("…")
-      row.delta:SetTextColor(0.7, 0.7, 0.7)
-    end
+    applyDelta(row, score, equippedScore)
 
     row.bestBorder:SetShown(i == 1 and n > 0)
     row.itemLink = c.itemLink
@@ -441,6 +448,22 @@ function Popout:RevertModel()
   hidePreview()
 end
 
+-- Re-score visible rows in place. Called when Pawn finishes resolving items
+-- that returned nil on the initial Show pass (the "…" placeholder rows).
+-- Sort order is not changed — only the delta text is patched, so the
+-- secure clickRow macrotexts stay aligned with the visible rows.
+function Popout:RefreshScores()
+  if not frame or not frame:IsShown() then return end
+  if not Popout._currentInvSlot then return end
+  local equipped = GetInventoryItemLink("player", Popout._currentInvSlot)
+  local equippedScore = equipped and SlotPeek.PawnAdapter:Score(equipped)
+  for _, row in ipairs(frame.rows) do
+    if row:IsShown() and row.itemLink then
+      applyDelta(row, SlotPeek.PawnAdapter:Score(row.itemLink), equippedScore)
+    end
+  end
+end
+
 function Popout:Hide()
   if hoverTimer then hoverTimer:Cancel(); hoverTimer = nil end
   if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
@@ -460,6 +483,7 @@ end
 function Popout:OnEnable()
   self:CreateFrame()
   self:Attach()
+  SlotPeek:RegisterMessage("SlotPeek_PAWN_RESOLVED", function() self:RefreshScores() end)
   SlotPeek:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", function() self:RevertModel() end)
   SlotPeek:RegisterEvent("PLAYER_REGEN_DISABLED", function()
     if frame and frame.combatBadge then frame.combatBadge:Show() end
