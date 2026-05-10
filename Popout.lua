@@ -62,9 +62,11 @@ function Popout:Attach()
 end
 
 local hoverTimer
+local dismissTimer
 function Popout:OnSlotEnter(slot)
   local invSlotID = SLOT_TO_INVSLOT[slot:GetName()]
   if not invSlotID then return end
+  if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
   if hoverTimer then hoverTimer:Cancel() end
   local delay = (SlotPeek.db and SlotPeek.db.profile.hoverDelay) or 0.15
   hoverTimer = C_Timer.NewTimer(delay, function() self:Show(slot, invSlotID) end)
@@ -72,10 +74,15 @@ end
 
 function Popout:OnSlotLeave(slot)
   if hoverTimer then hoverTimer:Cancel(); hoverTimer = nil end
-  C_Timer.After(0.2, function() if not frame:IsMouseOver() then self:Hide() end end)
+  if dismissTimer then dismissTimer:Cancel() end
+  dismissTimer = C_Timer.NewTimer(0.2, function()
+    if not frame:IsMouseOver() then Popout:Hide() end
+    dismissTimer = nil
+  end)
 end
 
 function Popout:Show(slot, invSlotID)
+  if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
   local cands = SlotPeek.BagIndex:GetCandidates(invSlotID)
   SlotPeek.BagIndex:SortByScore(cands)
   frame.header:SetText(("%s — %d items"):format(slot:GetName():gsub("Character",""):gsub("Slot",""), #cands))
