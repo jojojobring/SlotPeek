@@ -189,11 +189,17 @@ function Popout:CreateFrame()
   end)
 
   -- Secure overlay pool -------------------------------------------------
-  -- frame.clickContainer is a non-secure Frame that can be shown/hidden at
-  -- any time (even in combat). Its secure children cannot be touched during
-  -- combat lockdown, but toggling the parent is allowed.
-  frame.clickContainer = CreateFrame("Frame", nil, frame)
+  -- clickContainer is a SIBLING of frame (parented to UIParent), not a child.
+  -- A frame becomes "protected" in combat-lockdown terms if it has any
+  -- secure-template descendants — which would block frame:Show()/:Hide() in
+  -- combat. By keeping the secure click rows in a separate frame anchored
+  -- to (not parented to) frame.rows, the popout itself remains non-protected
+  -- and can show on hover during combat. The click overlay starts hidden
+  -- and is only shown out of combat via RunSafe — clicks are inert in combat.
+  frame.clickContainer = CreateFrame("Frame", nil, UIParent)
+  frame.clickContainer:SetFrameStrata(frame:GetFrameStrata())
   frame.clickContainer:SetAllPoints(frame)
+  frame.clickContainer:Hide()
 
   frame.clickRows = {}
   for i = 1, MAX_ROWS do
@@ -278,8 +284,6 @@ function Popout:OnSlotEnter(slot)
   if not invSlotID then return end
   if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
   if hoverTimer then hoverTimer:Cancel() end
-  -- Hide our equipped tooltip when cursor returns to a slot — Blizzard's
-  -- standard tooltip takes over.
   if equippedTip then equippedTip:Hide() end
   local delay = (SlotPeek.db and SlotPeek.db.profile.hoverDelay) or 0.15
   hoverTimer = C_Timer.NewTimer(delay, function() self:Show(slot, invSlotID) end)
@@ -408,6 +412,11 @@ function Popout:Show(slot, invSlotID)
     frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
   end
   frame:Show()
+  -- Show the secure overlay only out of combat. RunSafe queues during combat;
+  -- the overlay stays hidden, so clicks during combat are no-ops.
+  SlotPeek.CombatGuard:RunSafe(function()
+    if frame.clickContainer then frame.clickContainer:Show() end
+  end)
 end
 
 function Popout:RevertModel()
@@ -425,6 +434,9 @@ function Popout:Hide()
   Popout._currentSlot = nil
   Popout._currentInvSlot = nil
   frame:Hide()
+  SlotPeek.CombatGuard:RunSafe(function()
+    if frame.clickContainer then frame.clickContainer:Hide() end
+  end)
 end
 
 function Popout:OnEnable()
@@ -432,17 +444,16 @@ function Popout:OnEnable()
   self:Attach()
   SlotPeek:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", function() self:RevertModel() end)
   SlotPeek:RegisterEvent("PLAYER_REGEN_DISABLED", function()
-    -- Hide the secure overlay before combat lockdown so it can't receive
-    -- clicks (which would fail or fire stale attributes). The non-secure
-    -- parent toggle is allowed even when its protected children aren't.
-    if frame and frame.clickContainer then frame.clickContainer:Hide() end
     if frame and frame.combatBadge then frame.combatBadge:Show() end
+    -- clickContainer can't be hidden during lockdown (it's protected via
+    -- secure children). Already-hidden state is preserved; if it was shown
+    -- when combat started, it stays shown until popout dismisses out of
+    -- combat. PostClick on stale attrs is safe (fires Hide).
   end)
   SlotPeek:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-    if frame and frame.clickContainer then frame.clickContainer:Show() end
     if frame and frame.combatBadge then frame.combatBadge:Hide() end
     -- If popout is currently visible for some slot, re-run Show to refresh
-    -- the now-actionable secure attributes.
+    -- the now-actionable secure attributes (and re-show clickContainer).
     if frame and frame:IsShown() and Popout._lastSlot and Popout._lastInvSlot then
       Popout:Show(Popout._lastSlot, Popout._lastInvSlot)
     end
