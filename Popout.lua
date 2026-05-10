@@ -81,17 +81,18 @@ local function makePreviewRow(parent, index)
     GameTooltip:Show()
     -- 3. Cancel any pending dismiss
     if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
-    -- 4. Preview the item on the character model
-    if CharacterModelFrame then
-      CharacterModelFrame:TryOn(self.itemLink)
+    -- 4. Preview the item on our overlay DressUpModel
+    if frame.previewModel then
+      frame.previewModel:SetUnit("player")
+      frame.previewModel:TryOn(self.itemLink)
+      frame.previewModel:Show()
     end
   end)
   row:SetScript("OnLeave", function(self)
-    -- Hide candidate tooltip; keep equipped tooltip.
-    -- Do NOT revert the model here — successive TryOn calls between rows
-    -- naturally replace the preview, and reverting causes jitter. The model
-    -- is reverted on Popout:Hide() and on PLAYER_EQUIPMENT_CHANGED.
+    -- Hide candidate tooltip; keep equipped tooltip
     GameTooltip:Hide()
+    -- Hide the preview overlay so the live CharacterModelFrame shows through
+    if frame.previewModel then frame.previewModel:Hide() end
     -- Schedule dismiss in case cursor goes directly off-popout from this row.
     if dismissTimer then dismissTimer:Cancel() end
     dismissTimer = C_Timer.NewTimer(0.2, function()
@@ -130,6 +131,18 @@ function Popout:CreateFrame()
   end
 
   equippedTip = CreateFrame("GameTooltip", "SlotPeekEquippedTip", UIParent, "GameTooltipTemplate")
+
+  -- BCC's CharacterModelFrame is a PlayerModel, not a DressUpModel — it has
+  -- no TryOn method. Overlay our own DressUpModel at the same position so we
+  -- can preview items. It's hidden by default; shown only on row hover.
+  if CharacterModelFrame then
+    local parent = CharacterModelFrame:GetParent() or PaperDollFrame
+    frame.previewModel = CreateFrame("DressUpModel", "SlotPeekPreviewModel", parent)
+    frame.previewModel:SetAllPoints(CharacterModelFrame)
+    frame.previewModel:SetFrameStrata(CharacterModelFrame:GetFrameStrata())
+    frame.previewModel:SetFrameLevel(CharacterModelFrame:GetFrameLevel() + 1)
+    frame.previewModel:Hide()
+  end
 
   frame:SetScript("OnEnter", function()
     if Popout._currentSlot and Popout._currentInvSlot then
@@ -255,10 +268,9 @@ function Popout:Show(slot, invSlotID)
 end
 
 function Popout:RevertModel()
-  if not CharacterModelFrame then return end
-  -- SetUnit("player") re-syncs the model to live equipment. More reliable
-  -- than Undress+Dress (Dress isn't always available in BCC).
-  pcall(function() CharacterModelFrame:SetUnit("player") end)
+  -- "Reverting" simply means hiding our preview overlay; the live
+  -- CharacterModelFrame underneath shows through unchanged.
+  if frame and frame.previewModel then frame.previewModel:Hide() end
 end
 
 function Popout:Hide()
