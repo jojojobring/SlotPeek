@@ -26,3 +26,24 @@ function BagIndex:FitsSlot(invType, invSlotID)
   local set = SLOT_FITS[invSlotID]
   return set and set[invType] == true or false
 end
+
+function BagIndex:ScanBags()
+  local result = {}
+  for bag = 0, NUM_BAG_SLOTS do
+    local n = C_Container.GetContainerNumSlots(bag) or 0
+    for slot = 1, n do
+      local info = C_Container.GetContainerItemInfo(bag, slot)
+      if info and info.hyperlink then
+        table.insert(result, {
+          itemLink = info.hyperlink,
+          bag = bag,
+          slot = slot,
+          itemID = info.itemID,
+          icon = info.iconFileID,
+          source = "bags",
+        })
+      end
+    end
+  end
+  return result
+end

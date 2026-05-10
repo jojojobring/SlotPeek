@@ -63,3 +63,12 @@ SlotPeek:RegisterAssertion("BagIndex slot eligibility — INVTYPE_HEAD fits HEAD
   assert(not SlotPeek.BagIndex:FitsSlot("INVTYPE_2HWEAPON", INVSLOT_OFFHAND))
   assert(SlotPeek.BagIndex:FitsSlot("INVTYPE_HOLDABLE", INVSLOT_OFFHAND))
 end)
+
+SlotPeek:RegisterAssertion("BagIndex.ScanBags returns at least the items currently in bags", function()
+  local items = SlotPeek.BagIndex:ScanBags()
+  assert(type(items) == "table")
+  -- spot check: every entry has a link, bag, slot
+  for _, e in ipairs(items) do
+    assert(e.itemLink and e.bag and e.slot, "entry missing fields: " .. (e.itemLink or "?"))
+  end
+end)
