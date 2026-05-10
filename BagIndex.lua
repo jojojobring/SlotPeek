@@ -2,6 +2,20 @@ local SlotPeek = SlotPeek
 local BagIndex = {}
 SlotPeek.BagIndex = BagIndex
 
+local candidateCache = {}
+local refreshScheduled = false
+
+function BagIndex:Refresh()
+  candidateCache = {}
+  refreshScheduled = false
+end
+
+function BagIndex:ScheduleRefresh()
+  if refreshScheduled then return end
+  refreshScheduled = true
+  C_Timer.After(0, function() self:Refresh() end)
+end
+
 local SLOT_FITS = {
   [INVSLOT_HEAD]      = { INVTYPE_HEAD = true },
   [INVSLOT_NECK]      = { INVTYPE_NECK = true },
@@ -124,7 +138,14 @@ function BagIndex:IsUsable(itemLink)
   return true
 end
 
+function BagIndex:OnEnable()
+  SlotPeek:RegisterEvent("BAG_UPDATE_DELAYED", function() self:ScheduleRefresh() end)
+  SlotPeek:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", function() self:ScheduleRefresh() end)
+  SlotPeek:RegisterEvent("PLAYERBANKSLOTS_CHANGED", function() self:ScheduleRefresh() end)
+end
+
 function BagIndex:GetCandidates(invSlotID)
+  if candidateCache[invSlotID] then return candidateCache[invSlotID] end
   local result = {}
   local seen = {}
 
@@ -166,6 +187,7 @@ function BagIndex:GetCandidates(invSlotID)
 
   for _, e in ipairs(self:ScanBags()) do consider(e) end
   -- bank scan in Task 17
+  candidateCache[invSlotID] = result
   return result
 end
 
