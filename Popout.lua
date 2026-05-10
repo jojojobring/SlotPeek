@@ -36,6 +36,11 @@ local ROW_HEIGHT = 24
 local ROW_WIDTH = 200
 local MAX_ROWS = 30
 
+-- Timer state — declared early so closures inside makePreviewRow / CreateFrame
+-- capture these as proper file-locals (not globals).
+local hoverTimer
+local dismissTimer
+
 local function makePreviewRow(parent, index)
   local row = CreateFrame("Frame", nil, parent)
   row:SetSize(ROW_WIDTH, ROW_HEIGHT)
@@ -159,8 +164,6 @@ function Popout:Attach()
   end
 end
 
-local hoverTimer
-local dismissTimer
 function Popout:OnSlotEnter(slot)
   local invSlotID = SLOT_TO_INVSLOT[slot:GetName()]
   if not invSlotID then return end
