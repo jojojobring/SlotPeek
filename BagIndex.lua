@@ -47,3 +47,79 @@ function BagIndex:ScanBags()
   end
   return result
 end
+
+local CLASS_ARMOR = {
+  WARRIOR = { Cloth = 0, Leather = 0, Mail = 40, Plate = 40 },
+  PALADIN = { Cloth = 0, Leather = 0, Mail = 40, Plate = 40 },
+  HUNTER  = { Cloth = 0, Leather = 0, Mail = 40 },
+  ROGUE   = { Cloth = 0, Leather = 0 },
+  PRIEST  = { Cloth = 0 },
+  SHAMAN  = { Cloth = 0, Leather = 0, Mail = 40 },
+  MAGE    = { Cloth = 0 },
+  WARLOCK = { Cloth = 0 },
+  DRUID   = { Cloth = 0, Leather = 0 },
+}
+
+local CLASS_WEAPON = {} -- populated below
+
+local scanTip = CreateFrame("GameTooltip", "SlotPeekScanTip", UIParent, "GameTooltipTemplate")
+scanTip:SetOwner(UIParent, "ANCHOR_NONE")
+local usableCache = {}
+
+local function scanClassRestriction(itemLink)
+  scanTip:ClearLines()
+  scanTip:SetHyperlink(itemLink)
+  local n = scanTip:NumLines()
+  local prefix = ITEM_CLASSES_ALLOWED:gsub("%%s.*", "")
+  for i = 2, n do
+    local left = _G["SlotPeekScanTipTextLeft" .. i]
+    local text = left and left:GetText()
+    if text and text:find(prefix, 1, true) then
+      return text:sub(#prefix + 1)
+    end
+  end
+  return nil
+end
+
+function BagIndex:IsUsable(itemLink)
+  local itemID = (GetItemInfoInstant and GetItemInfoInstant(itemLink)) or nil
+  if itemID and usableCache[itemID] ~= nil then return usableCache[itemID] end
+
+  local _, _, _, _, _, _, _, _, equipLoc, _, _, classID, subclassID = GetItemInfo(itemLink)
+  if not equipLoc then return true end
+
+  local _, playerClass = UnitClass("player")
+
+  -- class restriction line
+  local restrictedTo = scanClassRestriction(itemLink)
+  if restrictedTo then
+    local localizedClass = LOCALIZED_CLASS_NAMES_MALE[playerClass] or playerClass
+    if not restrictedTo:find(localizedClass, 1, true) then
+      if itemID then usableCache[itemID] = false end
+      return false
+    end
+  end
+
+  -- armor proficiency (classID 4 = Armor in BCC)
+  if classID == 4 then
+    local subTypeName = select(7, GetItemInfo(itemLink)) -- subType localized; use API constant
+    -- subclassID for armor: 1=Cloth, 2=Leather, 3=Mail, 4=Plate
+    local armorMap = { [1] = "Cloth", [2] = "Leather", [3] = "Mail", [4] = "Plate" }
+    local needed = armorMap[subclassID]
+    if needed then
+      local prof = CLASS_ARMOR[playerClass]
+      if not prof or prof[needed] == nil then
+        if itemID then usableCache[itemID] = false end
+        return false
+      end
+      -- level gate
+      local minLevel = prof[needed]
+      if minLevel and UnitLevel("player") < minLevel then
+        -- character will eventually learn it; treat as usable (aspirational gear)
+      end
+    end
+  end
+
+  if itemID then usableCache[itemID] = true end
+  return true
+end

@@ -72,3 +72,11 @@ SlotPeek:RegisterAssertion("BagIndex.ScanBags returns at least the items current
     assert(e.itemLink and e.bag and e.slot, "entry missing fields: " .. (e.itemLink or "?"))
   end
 end)
+
+SlotPeek:RegisterAssertion("BagIndex.IsUsable accepts class-neutral items", function()
+  -- a generic cloth shirt — itemID 6948 is Hearthstone (no equip), use something else
+  -- find any equipped item; it must be usable by us
+  local equipped = GetInventoryItemLink("player", INVSLOT_CHEST) or GetInventoryItemLink("player", INVSLOT_HEAD)
+  if not equipped then return end
+  assert(SlotPeek.BagIndex:IsUsable(equipped), "equipped item should be usable: " .. equipped)
+end)
