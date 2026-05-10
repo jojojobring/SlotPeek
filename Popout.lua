@@ -190,7 +190,7 @@ function Popout:CreateFrame()
     local clickRow = CreateFrame("Button", "SlotPeekClickRow" .. i,
                                  frame.clickContainer, "SecureActionButtonTemplate")
     clickRow:SetAllPoints(frame.rows[i])
-    clickRow:RegisterForClicks("LeftButtonUp")
+    clickRow:RegisterForClicks("AnyDown", "AnyUp")
 
     -- OnEnter/OnLeave mirror the preview-row handlers. Because the click row
     -- sits on top when clickContainer is shown, the preview row's own scripts
