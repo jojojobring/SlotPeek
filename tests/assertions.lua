@@ -24,3 +24,10 @@ end
 SlotPeek:RegisterAssertion("sentinel: harness works", function()
   assert(true)
 end)
+
+SlotPeek:RegisterAssertion("DB initialized with defaults", function()
+  assert(SlotPeek.db, "SlotPeek.db missing")
+  assert(SlotPeek.db.profile.enabled == true, "default 'enabled' should be true")
+  assert(SlotPeek.db.profile.hoverDelay == 0.15, "default hoverDelay 0.15")
+  assert(type(SlotPeek.db.char.bankCache) == "table", "char.bankCache must be a table")
+end)

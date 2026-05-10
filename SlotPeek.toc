@@ -8,4 +8,5 @@
 ## X-License: MIT
 
 Core.lua
+DB.lua
 tests\assertions.lua
