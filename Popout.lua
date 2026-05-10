@@ -41,6 +41,17 @@ local MAX_ROWS = 30
 local hoverTimer
 local dismissTimer
 
+-- Returns true if a slot is on the left side of the character pane.
+local function slotIsLeftSide(slot)
+  if not (slot and CharacterModelFrame) then return false end
+  local sl = slot:GetLeft()
+  local mc = CharacterModelFrame:GetLeft()
+  if not sl or not mc then return false end
+  local slotCenter = sl + slot:GetWidth() / 2
+  local modelCenter = mc + CharacterModelFrame:GetWidth() / 2
+  return slotCenter < modelCenter
+end
+
 local function makePreviewRow(parent, index)
   local row = CreateFrame("Frame", nil, parent)
   row:SetSize(ROW_WIDTH, ROW_HEIGHT)
@@ -66,9 +77,11 @@ local function makePreviewRow(parent, index)
   row:EnableMouse(true)
   row:SetScript("OnEnter", function(self)
     if not self.itemLink then return end
-    -- 1. Keep equipped tooltip visible on the slot
+    -- 1. Keep equipped tooltip visible on the slot (anchored on the outside
+    --    side of the slot so it doesn't cover the character model)
     if Popout._currentSlot and Popout._currentInvSlot then
-      equippedTip:SetOwner(Popout._currentSlot, "ANCHOR_RIGHT")
+      local anchor = slotIsLeftSide(Popout._currentSlot) and "ANCHOR_LEFT" or "ANCHOR_RIGHT"
+      equippedTip:SetOwner(Popout._currentSlot, anchor)
       equippedTip:SetInventoryItem("player", Popout._currentInvSlot)
       equippedTip:Show()
     end
@@ -155,7 +168,8 @@ function Popout:CreateFrame()
 
   frame:SetScript("OnEnter", function()
     if Popout._currentSlot and Popout._currentInvSlot then
-      equippedTip:SetOwner(Popout._currentSlot, "ANCHOR_RIGHT")
+      local anchor = slotIsLeftSide(Popout._currentSlot) and "ANCHOR_LEFT" or "ANCHOR_RIGHT"
+      equippedTip:SetOwner(Popout._currentSlot, anchor)
       equippedTip:SetInventoryItem("player", Popout._currentInvSlot)
       equippedTip:Show()
     end
@@ -193,6 +207,13 @@ function Popout:OnSlotEnter(slot)
   -- Hide our equipped tooltip when cursor returns to a slot — Blizzard's
   -- standard tooltip takes over.
   if equippedTip then equippedTip:Hide() end
+  -- Re-anchor Blizzard's GameTooltip to the outside of the slot so it
+  -- doesn't cover the character model.
+  if GameTooltip:GetOwner() == slot and GameTooltip:IsShown() then
+    local anchor = slotIsLeftSide(slot) and "ANCHOR_LEFT" or "ANCHOR_RIGHT"
+    GameTooltip:SetOwner(slot, anchor)
+    GameTooltip:SetInventoryItem("player", invSlotID)
+  end
   local delay = (SlotPeek.db and SlotPeek.db.profile.hoverDelay) or 0.15
   hoverTimer = C_Timer.NewTimer(delay, function() self:Show(slot, invSlotID) end)
 end
@@ -261,14 +282,8 @@ function Popout:Show(slot, invSlotID)
   -- Anchor outside the character pane on the side the slot is on, so the
   -- popout doesn't cover the character model.
   frame:ClearAllPoints()
-  local slotCenter = (slot:GetLeft() or 0) + slot:GetWidth() / 2
-  local modelCenter
-  if CharacterModelFrame then
-    modelCenter = (CharacterModelFrame:GetLeft() or 0) + CharacterModelFrame:GetWidth() / 2
-  end
-  local popoutOnLeft = modelCenter and slotCenter < modelCenter
-  frame.popoutOnLeft = popoutOnLeft
-  if popoutOnLeft then
+  frame.popoutOnLeft = slotIsLeftSide(slot)
+  if frame.popoutOnLeft then
     frame:SetPoint("TOPRIGHT", slot, "TOPLEFT", -8, 0)
   else
     frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
