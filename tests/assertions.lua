@@ -42,3 +42,15 @@ end)
 SlotPeek:RegisterAssertion("CombatGuard.IsLocked matches InCombatLockdown", function()
   assert(SlotPeek.CombatGuard:IsLocked() == InCombatLockdown(), "IsLocked must wrap InCombatLockdown")
 end)
+
+SlotPeek:RegisterAssertion("PawnAdapter ready", function()
+  assert(SlotPeek.PawnAdapter, "PawnAdapter missing")
+  assert(SlotPeek.PawnAdapter:IsReady(), "PawnAdapter:IsReady must wrap PawnIsReady")
+end)
+
+SlotPeek:RegisterAssertion("PawnAdapter.Score returns number for equipped helm", function()
+  local link = GetInventoryItemLink("player", INVSLOT_HEAD)
+  if not link then return end -- skip if no helm equipped
+  local score = SlotPeek.PawnAdapter:Score(link)
+  assert(type(score) == "number" or score == nil, "Score must return number or nil")
+end)

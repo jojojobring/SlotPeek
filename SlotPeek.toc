@@ -10,4 +10,5 @@
 Core.lua
 DB.lua
 CombatGuard.lua
+PawnAdapter.lua
 tests\assertions.lua
