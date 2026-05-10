@@ -80,3 +80,12 @@ SlotPeek:RegisterAssertion("BagIndex.IsUsable accepts class-neutral items", func
   if not equipped then return end
   assert(SlotPeek.BagIndex:IsUsable(equipped), "equipped item should be usable: " .. equipped)
 end)
+
+SlotPeek:RegisterAssertion("BagIndex.GetCandidates(INVSLOT_HEAD) returns slot-compatible items only", function()
+  local cands = SlotPeek.BagIndex:GetCandidates(INVSLOT_HEAD)
+  assert(type(cands) == "table")
+  for _, c in ipairs(cands) do
+    local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(c.itemLink)
+    assert(equipLoc == "INVTYPE_HEAD", "non-head item leaked: " .. c.itemLink)
+  end
+end)

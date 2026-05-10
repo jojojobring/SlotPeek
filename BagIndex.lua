@@ -123,3 +123,51 @@ function BagIndex:IsUsable(itemLink)
   if itemID then usableCache[itemID] = true end
   return true
 end
+
+function BagIndex:GetCandidates(invSlotID)
+  local result = {}
+  local seen = {}
+
+  -- exclude items currently in the "other" finger/trinket slot
+  local exclude = {}
+  if invSlotID == INVSLOT_FINGER1 then
+    exclude[GetInventoryItemLink("player", INVSLOT_FINGER2)] = true
+  elseif invSlotID == INVSLOT_FINGER2 then
+    exclude[GetInventoryItemLink("player", INVSLOT_FINGER1)] = true
+  elseif invSlotID == INVSLOT_TRINKET1 then
+    exclude[GetInventoryItemLink("player", INVSLOT_TRINKET2)] = true
+  elseif invSlotID == INVSLOT_TRINKET2 then
+    exclude[GetInventoryItemLink("player", INVSLOT_TRINKET1)] = true
+  end
+
+  -- 2H equipped → no OH candidates
+  if invSlotID == INVSLOT_OFFHAND then
+    local mh = GetInventoryItemLink("player", INVSLOT_MAINHAND)
+    if mh then
+      local _, _, _, _, _, _, _, _, mhLoc = GetItemInfo(mh)
+      if mhLoc == "INVTYPE_2HWEAPON" then return {} end
+    end
+  end
+
+  local function consider(entry)
+    if exclude[entry.itemLink] or seen[entry.itemLink] then return end
+    local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(entry.itemLink)
+    if not equipLoc or equipLoc == "" then return end
+    if not self:FitsSlot(equipLoc, invSlotID) then return end
+    if not self:IsUsable(entry.itemLink) then return end
+    seen[entry.itemLink] = true
+    table.insert(result, entry)
+  end
+
+  for _, e in ipairs(self:ScanBags()) do consider(e) end
+  -- bank scan in Task 17
+  return result
+end
+
+function BagIndex:SortByScore(candidates)
+  table.sort(candidates, function(a, b)
+    local sa = SlotPeek.PawnAdapter:Score(a.itemLink) or -math.huge
+    local sb = SlotPeek.PawnAdapter:Score(b.itemLink) or -math.huge
+    return sa > sb
+  end)
+end
