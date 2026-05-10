@@ -85,6 +85,14 @@ local function makePreviewRow(parent, index)
     -- Hide candidate tooltip; keep equipped tooltip
     GameTooltip:Hide()
     Popout:RevertModel()
+    -- Schedule dismiss in case cursor goes directly off-popout from this row.
+    -- If cursor enters another row or popout-empty-area, the corresponding
+    -- OnEnter cancels this timer.
+    if dismissTimer then dismissTimer:Cancel() end
+    dismissTimer = C_Timer.NewTimer(0.2, function()
+      if not frame:IsMouseOver() then Popout:Hide() end
+      dismissTimer = nil
+    end)
   end)
 
   return row
