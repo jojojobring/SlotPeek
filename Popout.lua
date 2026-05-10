@@ -64,6 +64,7 @@ function Popout:CreateFrame()
   frame = CreateFrame("Frame", "SlotPeekPopoutFrame", UIParent, "BackdropTemplate")
   frame:SetSize(ROW_WIDTH + 16, 40)
   frame:SetFrameStrata("DIALOG")
+  frame:EnableMouse(true)  -- block mouse from reaching slot frames behind the popout
   if frame.SetBackdrop then
     frame:SetBackdrop({
       bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
