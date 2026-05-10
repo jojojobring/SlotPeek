@@ -31,3 +31,14 @@ SlotPeek:RegisterAssertion("DB initialized with defaults", function()
   assert(SlotPeek.db.profile.hoverDelay == 0.15, "default hoverDelay 0.15")
   assert(type(SlotPeek.db.char.bankCache) == "table", "char.bankCache must be a table")
 end)
+
+SlotPeek:RegisterAssertion("CombatGuard.RunSafe runs immediately when not in combat", function()
+  assert(SlotPeek.CombatGuard, "CombatGuard module missing")
+  local ran = false
+  SlotPeek.CombatGuard:RunSafe(function() ran = true end)
+  assert(ran, "RunSafe should run synchronously out of combat")
+end)
+
+SlotPeek:RegisterAssertion("CombatGuard.IsLocked matches InCombatLockdown", function()
+  assert(SlotPeek.CombatGuard:IsLocked() == InCombatLockdown(), "IsLocked must wrap InCombatLockdown")
+end)
