@@ -129,15 +129,20 @@ function BagIndex:GetCandidates(invSlotID)
   local seen = {}
 
   -- exclude items currently in the "other" finger/trinket slot
+  -- (guard against nil — empty paired slot returns nil, and exclude[nil]=true raises)
   local exclude = {}
+  local function excludeOther(otherSlot)
+    local link = GetInventoryItemLink("player", otherSlot)
+    if link then exclude[link] = true end
+  end
   if invSlotID == INVSLOT_FINGER1 then
-    exclude[GetInventoryItemLink("player", INVSLOT_FINGER2)] = true
+    excludeOther(INVSLOT_FINGER2)
   elseif invSlotID == INVSLOT_FINGER2 then
-    exclude[GetInventoryItemLink("player", INVSLOT_FINGER1)] = true
+    excludeOther(INVSLOT_FINGER1)
   elseif invSlotID == INVSLOT_TRINKET1 then
-    exclude[GetInventoryItemLink("player", INVSLOT_TRINKET2)] = true
+    excludeOther(INVSLOT_TRINKET2)
   elseif invSlotID == INVSLOT_TRINKET2 then
-    exclude[GetInventoryItemLink("player", INVSLOT_TRINKET1)] = true
+    excludeOther(INVSLOT_TRINKET1)
   end
 
   -- 2H equipped → no OH candidates
