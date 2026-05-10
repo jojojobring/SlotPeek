@@ -81,10 +81,10 @@ local function makePreviewRow(parent, index)
     GameTooltip:Show()
     -- 3. Cancel any pending dismiss
     if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
-    -- 4. Preview the item on our overlay DressUpModel
-    --    Show first, then SetUnit + TryOn. TryOn on a hidden/uninitialized
-    --    model can silently no-op while the model is still loading.
+    -- 4. Swap the live model for our preview (3D models don't occlude via
+    --    frame strata, so we hide the original to avoid double-rendering).
     if frame.previewModel then
+      if CharacterModelFrame then CharacterModelFrame:Hide() end
       frame.previewModel:Show()
       frame.previewModel:SetUnit("player")
       frame.previewModel:TryOn(self.itemLink)
@@ -93,8 +93,9 @@ local function makePreviewRow(parent, index)
   row:SetScript("OnLeave", function(self)
     -- Hide candidate tooltip; keep equipped tooltip
     GameTooltip:Hide()
-    -- Hide the preview overlay so the live CharacterModelFrame shows through
+    -- Restore the live model
     if frame.previewModel then frame.previewModel:Hide() end
+    if CharacterModelFrame then CharacterModelFrame:Show() end
     -- Schedule dismiss in case cursor goes directly off-popout from this row.
     if dismissTimer then dismissTimer:Cancel() end
     dismissTimer = C_Timer.NewTimer(0.2, function()
@@ -272,9 +273,9 @@ function Popout:Show(slot, invSlotID)
 end
 
 function Popout:RevertModel()
-  -- "Reverting" simply means hiding our preview overlay; the live
-  -- CharacterModelFrame underneath shows through unchanged.
+  -- Hide our preview, restore the live CharacterModelFrame.
   if frame and frame.previewModel then frame.previewModel:Hide() end
+  if CharacterModelFrame then CharacterModelFrame:Show() end
 end
 
 function Popout:Hide()
