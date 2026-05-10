@@ -3,6 +3,7 @@ local Popout = {}
 SlotPeek.Popout = Popout
 
 local frame
+local equippedTip
 local SLOT_FRAMES = {
   CharacterHeadSlot, CharacterNeckSlot, CharacterShoulderSlot, CharacterBackSlot,
   CharacterChestSlot, CharacterWristSlot, CharacterHandsSlot, CharacterWaistSlot,
@@ -57,6 +58,30 @@ local function makePreviewRow(parent, index)
   row.bestBorder:SetColorTexture(1, 0.82, 0, 0.25)
   row.bestBorder:Hide()
 
+  row:EnableMouse(true)
+  row:SetScript("OnEnter", function(self)
+    if not self.itemLink then return end
+    -- 1. Keep equipped tooltip visible on the slot
+    if Popout._currentSlot and Popout._currentInvSlot then
+      equippedTip:SetOwner(Popout._currentSlot, "ANCHOR_RIGHT")
+      equippedTip:SetInventoryItem("player", Popout._currentInvSlot)
+      equippedTip:Show()
+    end
+    -- 2. Show candidate tooltip via GameTooltip, anchored to right of popout
+    --    (using GameTooltip lets Pawn's hooks fire so its values appear)
+    GameTooltip:SetOwner(parent, "ANCHOR_NONE")
+    GameTooltip:ClearAllPoints()
+    GameTooltip:SetPoint("TOPLEFT", parent, "TOPRIGHT", 4, 0)
+    GameTooltip:SetHyperlink(self.itemLink)
+    GameTooltip:Show()
+    -- 3. Cancel any pending dismiss
+    if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
+  end)
+  row:SetScript("OnLeave", function(self)
+    -- Hide candidate tooltip; keep equipped tooltip
+    GameTooltip:Hide()
+  end)
+
   return row
 end
 
@@ -85,6 +110,26 @@ function Popout:CreateFrame()
     frame.rows[i] = makePreviewRow(frame, i)
     frame.rows[i]:Hide()
   end
+
+  equippedTip = CreateFrame("GameTooltip", "SlotPeekEquippedTip", UIParent, "GameTooltipTemplate")
+
+  frame:SetScript("OnEnter", function()
+    if Popout._currentSlot and Popout._currentInvSlot then
+      equippedTip:SetOwner(Popout._currentSlot, "ANCHOR_RIGHT")
+      equippedTip:SetInventoryItem("player", Popout._currentInvSlot)
+      equippedTip:Show()
+    end
+    if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
+  end)
+
+  frame:SetScript("OnLeave", function()
+    -- schedule dismiss if cursor truly left popout
+    if dismissTimer then dismissTimer:Cancel() end
+    dismissTimer = C_Timer.NewTimer(0.2, function()
+      if not frame:IsMouseOver() then Popout:Hide() end
+      dismissTimer = nil
+    end)
+  end)
 end
 
 function Popout:Attach()
@@ -118,6 +163,8 @@ end
 
 function Popout:Show(slot, invSlotID)
   if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
+  Popout._currentSlot = slot
+  Popout._currentInvSlot = invSlotID
   local cands = SlotPeek.BagIndex:GetCandidates(invSlotID)
   SlotPeek.BagIndex:SortByScore(cands)
 
@@ -156,6 +203,7 @@ function Popout:Show(slot, invSlotID)
     end
 
     row.bestBorder:SetShown(i == 1 and n > 0)
+    row.itemLink = c.itemLink
     row:Show()
   end
 
@@ -182,6 +230,12 @@ function Popout:Show(slot, invSlotID)
 end
 
 function Popout:Hide()
+  if equippedTip then equippedTip:Hide() end
+  if Popout._currentSlot and GameTooltip:GetOwner() == frame then
+    GameTooltip:Hide()
+  end
+  Popout._currentSlot = nil
+  Popout._currentInvSlot = nil
   frame:Hide()
 end
 
