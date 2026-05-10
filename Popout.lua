@@ -139,6 +139,11 @@ function Popout:CreateFrame()
   frame.header = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   frame.header:SetPoint("TOPLEFT", 8, -8)
 
+  frame.combatBadge = frame:CreateFontString(nil, "OVERLAY", "GameFontRed")
+  frame.combatBadge:SetPoint("TOPRIGHT", -8, -8)
+  frame.combatBadge:SetText("[combat]")
+  frame.combatBadge:Hide()
+
   frame.rows = {}
   for i = 1, MAX_ROWS do
     frame.rows[i] = makePreviewRow(frame, i)
@@ -293,6 +298,12 @@ function Popout:Show(slot, invSlotID)
   if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
   -- Hide stale equipped tooltip from a previous slot before re-showing.
   if equippedTip then equippedTip:Hide() end
+  -- Track the last-shown slot so PLAYER_REGEN_ENABLED can re-run Show to
+  -- refresh secure attributes now that combat lockdown has lifted.
+  self._lastSlot = slot
+  self._lastInvSlot = invSlotID
+  -- Show the combat badge when the secure click overlay is locked out.
+  frame.combatBadge:SetShown(SlotPeek.CombatGuard:IsLocked())
   Popout._currentSlot = slot
   Popout._currentInvSlot = invSlotID
   local cands = SlotPeek.BagIndex:GetCandidates(invSlotID)
@@ -420,4 +431,20 @@ function Popout:OnEnable()
   self:CreateFrame()
   self:Attach()
   SlotPeek:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", function() self:RevertModel() end)
+  SlotPeek:RegisterEvent("PLAYER_REGEN_DISABLED", function()
+    -- Hide the secure overlay before combat lockdown so it can't receive
+    -- clicks (which would fail or fire stale attributes). The non-secure
+    -- parent toggle is allowed even when its protected children aren't.
+    if frame and frame.clickContainer then frame.clickContainer:Hide() end
+    if frame and frame.combatBadge then frame.combatBadge:Show() end
+  end)
+  SlotPeek:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+    if frame and frame.clickContainer then frame.clickContainer:Show() end
+    if frame and frame.combatBadge then frame.combatBadge:Hide() end
+    -- If popout is currently visible for some slot, re-run Show to refresh
+    -- the now-actionable secure attributes.
+    if frame and frame:IsShown() and Popout._lastSlot and Popout._lastInvSlot then
+      Popout:Show(Popout._lastSlot, Popout._lastInvSlot)
+    end
+  end)
 end
