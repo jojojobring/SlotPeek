@@ -68,7 +68,7 @@ local function makePreviewRow(parent, index)
   row.iconBorder:SetPoint("CENTER", row.icon, "CENTER")
 
   row.delta = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.delta:SetPoint("RIGHT", -4, 0)
+  row.delta:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
 
   row.bestBorder = row:CreateTexture(nil, "BACKGROUND")
   row.bestBorder:SetAllPoints(row)
@@ -78,23 +78,17 @@ local function makePreviewRow(parent, index)
   row:EnableMouse(true)
   row:SetScript("OnEnter", function(self)
     if not self.itemLink then return end
-    -- 1. Keep equipped tooltip visible on the slot (anchored on the outside
-    --    side of the slot so it doesn't cover the character model)
+    -- 1. Keep equipped tooltip visible on the slot
     if Popout._currentSlot and Popout._currentInvSlot then
-      local anchor = slotIsLeftSide(Popout._currentSlot) and "ANCHOR_LEFT" or "ANCHOR_RIGHT"
-      equippedTip:SetOwner(Popout._currentSlot, anchor)
+      equippedTip:SetOwner(Popout._currentSlot, "ANCHOR_RIGHT")
       equippedTip:SetInventoryItem("player", Popout._currentInvSlot)
       equippedTip:Show()
     end
-    -- 2. Show candidate tooltip via GameTooltip, anchored to the outside
-    --    of the popout (further from the character model).
+    -- 2. Show candidate tooltip via GameTooltip, anchored to right of popout
+    --    (using GameTooltip lets Pawn's hooks fire so its values appear)
     GameTooltip:SetOwner(parent, "ANCHOR_NONE")
     GameTooltip:ClearAllPoints()
-    if parent.popoutOnLeft then
-      GameTooltip:SetPoint("TOPRIGHT", parent, "TOPLEFT", -4, 0)
-    else
-      GameTooltip:SetPoint("TOPLEFT", parent, "TOPRIGHT", 4, 0)
-    end
+    GameTooltip:SetPoint("TOPLEFT", parent, "TOPRIGHT", 4, 0)
     GameTooltip:SetHyperlink(self.itemLink)
     GameTooltip:Show()
     -- 3. Cancel any pending dismiss
@@ -169,8 +163,7 @@ function Popout:CreateFrame()
 
   frame:SetScript("OnEnter", function()
     if Popout._currentSlot and Popout._currentInvSlot then
-      local anchor = slotIsLeftSide(Popout._currentSlot) and "ANCHOR_LEFT" or "ANCHOR_RIGHT"
-      equippedTip:SetOwner(Popout._currentSlot, anchor)
+      equippedTip:SetOwner(Popout._currentSlot, "ANCHOR_RIGHT")
       equippedTip:SetInventoryItem("player", Popout._currentInvSlot)
       equippedTip:Show()
     end
@@ -208,13 +201,6 @@ function Popout:OnSlotEnter(slot)
   -- Hide our equipped tooltip when cursor returns to a slot — Blizzard's
   -- standard tooltip takes over.
   if equippedTip then equippedTip:Hide() end
-  -- Re-anchor Blizzard's GameTooltip to the outside of the slot so it
-  -- doesn't cover the character model.
-  if GameTooltip:GetOwner() == slot and GameTooltip:IsShown() then
-    local anchor = slotIsLeftSide(slot) and "ANCHOR_LEFT" or "ANCHOR_RIGHT"
-    GameTooltip:SetOwner(slot, anchor)
-    GameTooltip:SetInventoryItem("player", invSlotID)
-  end
   local delay = (SlotPeek.db and SlotPeek.db.profile.hoverDelay) or 0.15
   hoverTimer = C_Timer.NewTimer(delay, function() self:Show(slot, invSlotID) end)
 end
@@ -278,15 +264,8 @@ function Popout:Show(slot, invSlotID)
   frame:SetHeight(28 + n * (ROW_HEIGHT + 2) + 8)
   frame.header:SetText(("%d item%s"):format(#cands, #cands == 1 and "" or "s"))
 
-  -- Anchor outside the character pane on the side the slot is on, so the
-  -- popout doesn't cover the character model.
   frame:ClearAllPoints()
-  frame.popoutOnLeft = slotIsLeftSide(slot)
-  if frame.popoutOnLeft then
-    frame:SetPoint("TOPRIGHT", slot, "TOPLEFT", -8, 0)
-  else
-    frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
-  end
+  frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
   frame:Show()
 end
 
