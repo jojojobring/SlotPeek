@@ -76,10 +76,15 @@ local function makePreviewRow(parent, index)
     GameTooltip:Show()
     -- 3. Cancel any pending dismiss
     if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
+    -- 4. Preview the item on the character model
+    if CharacterModelFrame then
+      CharacterModelFrame:TryOn(self.itemLink)
+    end
   end)
   row:SetScript("OnLeave", function(self)
     -- Hide candidate tooltip; keep equipped tooltip
     GameTooltip:Hide()
+    Popout:RevertModel()
   end)
 
   return row
@@ -234,7 +239,15 @@ function Popout:Show(slot, invSlotID)
   frame:Show()
 end
 
+function Popout:RevertModel()
+  if CharacterModelFrame then
+    CharacterModelFrame:Undress()
+    CharacterModelFrame:Dress()
+  end
+end
+
 function Popout:Hide()
+  self:RevertModel()
   if equippedTip then equippedTip:Hide() end
   if Popout._currentSlot and GameTooltip:GetOwner() == frame then
     GameTooltip:Hide()
@@ -247,4 +260,5 @@ end
 function Popout:OnEnable()
   self:CreateFrame()
   self:Attach()
+  SlotPeek:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", function() self:RevertModel() end)
 end
