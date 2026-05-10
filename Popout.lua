@@ -337,12 +337,15 @@ function Popout:Show(slot, invSlotID)
     local clickRow = frame.clickRows[i]
     SlotPeek.CombatGuard:RunSafe(function()
       if c.source == "bags" then
-        clickRow:SetAttribute("type", "item")
-        clickRow:SetAttribute("item", c.bag .. " " .. c.slot)
+        -- Use a macro: "/use <bag> <slot>" reliably equips by container
+        -- position in BCC. type="item" with "<bag> <slot>" syntax is not
+        -- consistently honored for equippables in this client.
+        clickRow:SetAttribute("type", "macro")
+        clickRow:SetAttribute("macrotext", "/use " .. c.bag .. " " .. c.slot)
       else
         -- Bank rows: leave type unset so click is a no-op; PostClick toasts.
         clickRow:SetAttribute("type", nil)
-        clickRow:SetAttribute("item", nil)
+        clickRow:SetAttribute("macrotext", nil)
       end
       clickRow:Show()
     end)
