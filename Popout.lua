@@ -177,6 +177,76 @@ function Popout:CreateFrame()
       dismissTimer = nil
     end)
   end)
+
+  -- Secure overlay pool -------------------------------------------------
+  -- frame.clickContainer is a non-secure Frame that can be shown/hidden at
+  -- any time (even in combat). Its secure children cannot be touched during
+  -- combat lockdown, but toggling the parent is allowed.
+  frame.clickContainer = CreateFrame("Frame", nil, frame)
+  frame.clickContainer:SetAllPoints(frame)
+
+  frame.clickRows = {}
+  for i = 1, MAX_ROWS do
+    local clickRow = CreateFrame("Button", "SlotPeekClickRow" .. i,
+                                 frame.clickContainer, "SecureActionButtonTemplate")
+    clickRow:SetAllPoints(frame.rows[i])
+    clickRow:RegisterForClicks("LeftButtonUp")
+
+    -- OnEnter/OnLeave mirror the preview-row handlers. Because the click row
+    -- sits on top when clickContainer is shown, the preview row's own scripts
+    -- don't fire — these handlers take over.
+    clickRow:HookScript("OnEnter", function(self)
+      local pr = frame.rows[i]
+      if not pr.itemLink then return end
+      -- Equipped tooltip on the slot
+      if Popout._currentSlot and Popout._currentInvSlot then
+        equippedTip:SetOwner(Popout._currentSlot, "ANCHOR_RIGHT")
+        equippedTip:SetInventoryItem("player", Popout._currentInvSlot)
+        equippedTip:Show()
+      end
+      -- Candidate tooltip via GameTooltip anchored to the right of the popout
+      GameTooltip:SetOwner(frame, "ANCHOR_NONE")
+      GameTooltip:ClearAllPoints()
+      GameTooltip:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, 0)
+      GameTooltip:SetHyperlink(pr.itemLink)
+      GameTooltip:Show()
+      -- 3D model preview
+      if frame.previewModel then
+        if CharacterModelFrame then CharacterModelFrame:Hide() end
+        frame.previewModel:Show()
+        frame.previewModel:SetUnit("player")
+        frame.previewModel:TryOn(pr.itemLink)
+      end
+      -- Cancel any pending dismiss
+      if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
+    end)
+
+    clickRow:HookScript("OnLeave", function(self)
+      GameTooltip:Hide()
+      if frame.previewModel then frame.previewModel:Hide() end
+      if CharacterModelFrame then CharacterModelFrame:Show() end
+      -- Schedule dismiss in case cursor leaves the popout from this row.
+      if dismissTimer then dismissTimer:Cancel() end
+      dismissTimer = C_Timer.NewTimer(0.2, function()
+        if not frame:IsMouseOver() then Popout:Hide() end
+        dismissTimer = nil
+      end)
+    end)
+
+    -- PostClick fires after the secure click resolves. Bag rows dismiss the
+    -- popout; bank rows show a toast (the click was a no-op — attributes were
+    -- left unset for bank items).
+    clickRow:HookScript("PostClick", function(self)
+      local pr = frame.rows[i]
+      if pr.isBank then
+        UIErrorsFrame:AddMessage("Item is in your bank — withdraw it to equip.", 1.0, 0.82, 0)
+      else
+        Popout:Hide()
+      end
+    end)
+
+    frame.clickRows[i] = clickRow
+  end
 end
 
 function Popout:Attach()
@@ -258,7 +328,31 @@ function Popout:Show(slot, invSlotID)
 
     row.bestBorder:SetShown(i == 1 and n > 0)
     row.itemLink = c.itemLink
+    -- Flag used by clickRow's PostClick handler to distinguish bank items.
+    row.isBank = (c.source == "bank")
     row:Show()
+
+    -- Configure the matching secure overlay row (must be done via RunSafe
+    -- because SetAttribute is blocked during combat lockdown).
+    local clickRow = frame.clickRows[i]
+    SlotPeek.CombatGuard:RunSafe(function()
+      if c.source == "bags" then
+        clickRow:SetAttribute("type", "item")
+        clickRow:SetAttribute("item", c.bag .. " " .. c.slot)
+      else
+        -- Bank rows: leave type unset so click is a no-op; PostClick toasts.
+        clickRow:SetAttribute("type", nil)
+        clickRow:SetAttribute("item", nil)
+      end
+      clickRow:Show()
+    end)
+  end
+
+  -- Hide unused secure overlay rows.
+  for i = n + 1, MAX_ROWS do
+    SlotPeek.CombatGuard:RunSafe(function()
+      frame.clickRows[i]:Hide()
+    end)
   end
 
   frame:SetHeight(28 + n * (ROW_HEIGHT + 2) + 8)
