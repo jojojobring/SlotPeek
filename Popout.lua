@@ -91,8 +91,6 @@ local function makePreviewRow(parent, index)
     GameTooltip:Hide()
     Popout:RevertModel()
     -- Schedule dismiss in case cursor goes directly off-popout from this row.
-    -- If cursor enters another row or popout-empty-area, the corresponding
-    -- OnEnter cancels this timer.
     if dismissTimer then dismissTimer:Cancel() end
     dismissTimer = C_Timer.NewTimer(0.2, function()
       if not frame:IsMouseOver() then Popout:Hide() end
@@ -141,7 +139,6 @@ function Popout:CreateFrame()
   end)
 
   frame:SetScript("OnLeave", function()
-    -- schedule dismiss if cursor truly left popout
     if dismissTimer then dismissTimer:Cancel() end
     dismissTimer = C_Timer.NewTimer(0.2, function()
       if not frame:IsMouseOver() then Popout:Hide() end
@@ -256,10 +253,10 @@ function Popout:Show(slot, invSlotID)
 end
 
 function Popout:RevertModel()
-  if CharacterModelFrame then
-    CharacterModelFrame:Undress()
-    CharacterModelFrame:Dress()
-  end
+  if not CharacterModelFrame then return end
+  -- SetUnit("player") re-syncs the model to live equipment. More reliable
+  -- than Undress+Dress (Dress isn't always available in BCC).
+  pcall(function() CharacterModelFrame:SetUnit("player") end)
 end
 
 function Popout:Hide()
