@@ -31,9 +31,38 @@ local SLOT_TO_INVSLOT = {
   CharacterRangedSlot = INVSLOT_RANGED,
 }
 
+local ROW_HEIGHT = 24
+local ROW_WIDTH = 200
+local MAX_ROWS = 30
+
+local function makePreviewRow(parent, index)
+  local row = CreateFrame("Frame", nil, parent)
+  row:SetSize(ROW_WIDTH, ROW_HEIGHT)
+  row:SetPoint("TOPLEFT", 8, -28 - (index - 1) * (ROW_HEIGHT + 2))
+
+  row.icon = row:CreateTexture(nil, "ARTWORK")
+  row.icon:SetSize(20, 20)
+  row.icon:SetPoint("LEFT", 0, 0)
+
+  row.name = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  row.name:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
+  row.name:SetWidth(ROW_WIDTH - 80)
+  row.name:SetJustifyH("LEFT")
+
+  row.delta = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  row.delta:SetPoint("RIGHT", -4, 0)
+
+  row.bestBorder = row:CreateTexture(nil, "BACKGROUND")
+  row.bestBorder:SetAllPoints(row)
+  row.bestBorder:SetColorTexture(1, 0.82, 0, 0.25)
+  row.bestBorder:Hide()
+
+  return row
+end
+
 function Popout:CreateFrame()
   frame = CreateFrame("Frame", "SlotPeekPopoutFrame", UIParent, "BackdropTemplate")
-  frame:SetSize(220, 40)
+  frame:SetSize(ROW_WIDTH + 16, 40)
   frame:SetFrameStrata("DIALOG")
   if frame.SetBackdrop then
     frame:SetBackdrop({
@@ -49,7 +78,12 @@ function Popout:CreateFrame()
 
   frame.header = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   frame.header:SetPoint("TOPLEFT", 8, -8)
-  frame.header:SetText("(no items)")
+
+  frame.rows = {}
+  for i = 1, MAX_ROWS do
+    frame.rows[i] = makePreviewRow(frame, i)
+    frame.rows[i]:Hide()
+  end
 end
 
 function Popout:Attach()
@@ -85,13 +119,49 @@ function Popout:Show(slot, invSlotID)
   if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
   local cands = SlotPeek.BagIndex:GetCandidates(invSlotID)
   SlotPeek.BagIndex:SortByScore(cands)
-  frame.header:SetText(("%s — %d items"):format(slot:GetName():gsub("Character",""):gsub("Slot",""), #cands))
+
+  local equipped = GetInventoryItemLink("player", invSlotID)
+  local equippedScore = equipped and SlotPeek.PawnAdapter:Score(equipped)
+
+  for i, row in ipairs(frame.rows) do row:Hide() end
+
+  local n = math.min(#cands, MAX_ROWS)
+  for i = 1, n do
+    local c = cands[i]
+    local _, _, quality, _, _, _, _, _, _, icon = GetItemInfo(c.itemLink)
+    local row = frame.rows[i]
+    row.icon:SetTexture(icon or c.icon)
+    local r, g, b = GetItemQualityColor(quality or 1)
+    row.name:SetText(c.itemLink:match("%[(.-)%]") or "?")
+    row.name:SetTextColor(r, g, b)
+
+    local score = SlotPeek.PawnAdapter:Score(c.itemLink)
+    if score and equippedScore and equippedScore > 0 then
+      local pct = (score - equippedScore) / equippedScore * 100
+      row.delta:SetText(("%+0.1f%%"):format(pct))
+      if pct > 0 then row.delta:SetTextColor(0.4, 1, 0.4)
+      elseif pct < 0 then row.delta:SetTextColor(1, 0.5, 0.5)
+      else row.delta:SetTextColor(1, 1, 1) end
+    elseif score then
+      row.delta:SetText(tostring(math.floor(score)))
+      row.delta:SetTextColor(1, 1, 1)
+    else
+      row.delta:SetText("…")
+      row.delta:SetTextColor(0.7, 0.7, 0.7)
+    end
+
+    row.bestBorder:SetShown(i == 1 and n > 0)
+    row:Show()
+  end
+
+  frame:SetHeight(28 + n * (ROW_HEIGHT + 2) + 8)
+  frame.header:SetText(("%s — %d items"):format(
+    slot:GetName():gsub("Character",""):gsub("Slot",""), #cands))
+
   frame:ClearAllPoints()
   if GameTooltip:IsShown() and GameTooltip:GetOwner() == slot then
-    -- anchor below tooltip, left-aligned with it
     frame:SetPoint("TOPLEFT", GameTooltip, "BOTTOMLEFT", 0, -2)
   else
-    -- empty slot — anchor next to slot frame
     frame:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, 0)
   end
   frame:Show()
