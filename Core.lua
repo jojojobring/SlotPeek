@@ -6,5 +6,16 @@ function SlotPeek:OnInitialize()
 end
 
 function SlotPeek:OnEnable()
-  -- modules attach in later tasks
+  self:RegisterChatCommand("slotpeek", "HandleSlash")
+end
+
+function SlotPeek:HandleSlash(input)
+  input = input and input:lower() or ""
+  if input == "test" then
+    self:RunAssertions()
+  elseif input == "config" then
+    self:Print("config UI not yet implemented (Task 21)")
+  else
+    self:Print("commands: /slotpeek test | config")
+  end
 end
