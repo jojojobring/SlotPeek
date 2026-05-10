@@ -4,12 +4,6 @@ SlotPeek.Popout = Popout
 
 local frame
 local equippedTip
-
-local function dbg(msg)
-  if SlotPeek.db and SlotPeek.db.profile and SlotPeek.db.profile.debug then
-    SlotPeek:Print("[dbg] " .. msg)
-  end
-end
 local SLOT_FRAMES = {
   CharacterHeadSlot, CharacterNeckSlot, CharacterShoulderSlot, CharacterBackSlot,
   CharacterChestSlot, CharacterWristSlot, CharacterHandsSlot, CharacterWaistSlot,
@@ -231,7 +225,6 @@ function Popout:CreateFrame()
     -- sits on top when clickContainer is shown, the preview row's own scripts
     -- don't fire — these handlers take over.
     clickRow:HookScript("OnEnter", function(self)
-      dbg("clickRow OnEnter row=" .. i)
       local pr = frame.rows[i]
       if not pr.itemLink then return end
       -- Equipped tooltip on the slot
@@ -267,7 +260,6 @@ function Popout:CreateFrame()
     -- popout; bank rows show a toast (the click was a no-op — attributes were
     -- left unset for bank items).
     clickRow:HookScript("PostClick", function(self)
-      dbg("PostClick row=" .. i)
       local pr = frame.rows[i]
       if pr.isBank then
         UIErrorsFrame:AddMessage("Item is in your bank — withdraw it to equip.", 1.0, 0.82, 0)
@@ -442,24 +434,6 @@ function Popout:Show(slot, invSlotID)
     end
     if w and h then frame.clickContainer:SetSize(w, h) end
     frame.clickContainer:Show()
-    if SlotPeek.db and SlotPeek.db.profile and SlotPeek.db.profile.debug then
-      local cc = frame.clickContainer
-      local r1 = frame.clickRows[1]
-      SlotPeek:Print(("[dbg] cc shown=%s lvl=%d pos=%.0f,%.0f size=%.0fx%.0f")
-        :format(tostring(cc:IsShown()), cc:GetFrameLevel() or -1,
-                cc:GetLeft() or 0, cc:GetTop() or 0,
-                cc:GetWidth() or 0, cc:GetHeight() or 0))
-      SlotPeek:Print(("[dbg] cr1 shown=%s pos=%.0f,%.0f size=%.0fx%.0f mouseEn=%s type=%s mt=%s")
-        :format(tostring(r1:IsShown()),
-                r1:GetLeft() or 0, r1:GetTop() or 0,
-                r1:GetWidth() or 0, r1:GetHeight() or 0,
-                tostring(r1:IsMouseEnabled()),
-                tostring(r1:GetAttribute("type")),
-                tostring(r1:GetAttribute("macrotext"))))
-      SlotPeek:Print(("[dbg] frame lvl=%d, cc lvl=%d, frame:IsProtected=%s")
-        :format(frame:GetFrameLevel() or -1, cc:GetFrameLevel() or -1,
-                tostring(frame:IsProtected())))
-    end
   end)
 end
 
