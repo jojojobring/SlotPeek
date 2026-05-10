@@ -201,23 +201,29 @@ function Popout:CreateFrame()
   end)
 
   -- Secure overlay pool -------------------------------------------------
-  -- clickContainer is a SIBLING of frame (parented to UIParent), not a child.
-  -- A frame becomes "protected" in combat-lockdown terms if it has any
-  -- secure-template descendants — which would block frame:Show()/:Hide() in
-  -- combat. By keeping the secure click rows in a separate frame anchored
-  -- to (not parented to) frame.rows, the popout itself remains non-protected
-  -- and can show on hover during combat. The click overlay starts hidden
-  -- and is only shown out of combat via RunSafe — clicks are inert in combat.
+  -- clickContainer is parented to UIParent, NOT frame. CRITICAL: we must
+  -- not anchor any secure frame to a non-secure one — in BCC, doing so
+  -- propagates protected status up the anchor chain (secure-anchored-to-X
+  -- protects X, and X's parent inherits). So instead of
+  -- clickContainer:SetAllPoints(frame), we sync the container's position
+  -- to UIParent screen-coords in Popout:Show via RunSafe.
+  -- Likewise, clickRows are anchored internally within clickContainer
+  -- (secure → secure, fine), NOT to frame.rows[i] (which would taint frame).
   frame.clickContainer = CreateFrame("Frame", nil, UIParent)
   frame.clickContainer:SetFrameStrata(frame:GetFrameStrata())
-  frame.clickContainer:SetAllPoints(frame)
+  frame.clickContainer:SetSize(ROW_WIDTH + 16, 40)
+  frame.clickContainer:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
   frame.clickContainer:Hide()
 
   frame.clickRows = {}
   for i = 1, MAX_ROWS do
     local clickRow = CreateFrame("Button", "SlotPeekClickRow" .. i,
                                  frame.clickContainer, "SecureActionButtonTemplate")
-    clickRow:SetAllPoints(frame.rows[i])
+    -- Match the preview-row layout (see makePreviewRow line ~67) so the
+    -- secure overlay lines up exactly with the visible preview rows.
+    clickRow:SetSize(ROW_WIDTH, ROW_HEIGHT)
+    clickRow:SetPoint("TOPLEFT", frame.clickContainer, "TOPLEFT",
+                      8, -28 - (i - 1) * (ROW_HEIGHT + 2))
     clickRow:RegisterForClicks("AnyDown", "AnyUp")
 
     -- OnEnter/OnLeave mirror the preview-row handlers. Because the click row
@@ -436,10 +442,19 @@ function Popout:Show(slot, invSlotID)
   if inCombat then dbg("Show: about to frame:Show, IsProtected=" .. tostring(frame:IsProtected())) end
   frame:Show()
   if inCombat then dbg("Show: frame:Show returned, IsShown=" .. tostring(frame:IsShown())) end
-  -- Show the secure overlay only out of combat. RunSafe queues during combat;
-  -- the overlay stays hidden, so clicks during combat are no-ops.
+  -- Sync clickContainer's screen position to match frame, then show it.
+  -- Both ops are protected (clickContainer has secure descendants), so they
+  -- run via RunSafe — queued in combat, executed on PLAYER_REGEN_ENABLED.
+  local left, top = frame:GetLeft(), frame:GetTop()
+  local w, h = frame:GetWidth(), frame:GetHeight()
   SlotPeek.CombatGuard:RunSafe(function()
-    if frame.clickContainer then frame.clickContainer:Show() end
+    if not frame.clickContainer then return end
+    if left and top then
+      frame.clickContainer:ClearAllPoints()
+      frame.clickContainer:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+    end
+    if w and h then frame.clickContainer:SetSize(w, h) end
+    frame.clickContainer:Show()
   end)
   if inCombat then dbg("Show EXIT") end
 end
