@@ -54,3 +54,12 @@ SlotPeek:RegisterAssertion("PawnAdapter.Score returns number for equipped helm",
   local score = SlotPeek.PawnAdapter:Score(link)
   assert(type(score) == "number" or score == nil, "Score must return number or nil")
 end)
+
+SlotPeek:RegisterAssertion("BagIndex slot eligibility — INVTYPE_HEAD fits HEAD slot", function()
+  assert(SlotPeek.BagIndex, "BagIndex missing")
+  assert(SlotPeek.BagIndex:FitsSlot("INVTYPE_HEAD", INVSLOT_HEAD))
+  assert(not SlotPeek.BagIndex:FitsSlot("INVTYPE_HEAD", INVSLOT_CHEST))
+  assert(SlotPeek.BagIndex:FitsSlot("INVTYPE_2HWEAPON", INVSLOT_MAINHAND))
+  assert(not SlotPeek.BagIndex:FitsSlot("INVTYPE_2HWEAPON", INVSLOT_OFFHAND))
+  assert(SlotPeek.BagIndex:FitsSlot("INVTYPE_HOLDABLE", INVSLOT_OFFHAND))
+end)

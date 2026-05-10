@@ -11,4 +11,5 @@ Core.lua
 DB.lua
 CombatGuard.lua
 PawnAdapter.lua
+BagIndex.lua
 tests\assertions.lua
