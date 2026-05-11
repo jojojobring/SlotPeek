@@ -12,6 +12,10 @@ function SlotPeek:OnEnable()
   self.BagIndex:OnEnable()
   self.Popout:OnEnable()
   self.Config:OnEnable()
+  if not (PawnGetItemData and PawnGetAllScales) then
+    self:Print("|cffff7f7fPawn is not loaded \124 scoring disabled. " ..
+               "Install/enable Pawn for item rankings.|r")
+  end
 end
 
 function SlotPeek:HandleSlash(input)

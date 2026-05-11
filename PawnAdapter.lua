@@ -24,15 +24,18 @@ end
 
 function PawnAdapter:Score(itemLink)
   if not itemLink or not PawnGetItemData then return nil end
-  local item = PawnGetItemData(itemLink)
+  -- pcall both Pawn calls: a Pawn-internal error must not cascade up and
+  -- break our row loop (which iterates all candidates).
+  local ok, item = pcall(PawnGetItemData, itemLink)
+  if not ok then return nil end
   if not item then
     self:_QueueRetry(itemLink)
     return nil
   end
   local scale = self:ScaleName()
-  if not scale then return nil end
-  local v = PawnGetSingleValueFromItem(item, scale)
-  return v
+  if not scale or not PawnGetSingleValueFromItem then return nil end
+  local ok2, v = pcall(PawnGetSingleValueFromItem, item, scale)
+  return ok2 and v or nil
 end
 
 function PawnAdapter:BestForSlot(invType)
@@ -51,7 +54,8 @@ end
 function PawnAdapter:_Tick()
   local resolved = false
   for link, attempts in pairs(pending) do
-    if PawnGetItemData(link) then
+    local ok, item = pcall(PawnGetItemData, link)
+    if ok and item then
       pending[link] = nil
       resolved = true
     else
