@@ -12,7 +12,7 @@ Manual checks for verifying SlotPeek behavior end-to-end before tagging a releas
 
 | Step | Expectation |
 |---|---|
-| Load WoW with SlotPeek enabled | `SlotPeek: loaded (v0.1.0-dev)` in chat. No script errors. |
+| Load WoW with SlotPeek enabled | `SlotPeek: loaded (v0.1.0)` in chat. No script errors. |
 | `/slotpeek` | Prints command list including `test \| config \| refresh \| debug`. |
 | `/slotpeek test` | Assertion harness reports all pass. |
 

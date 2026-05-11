@@ -3,7 +3,7 @@ SlotPeek = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceEvent-3.0", "AceConso
 
 function SlotPeek:OnInitialize()
   self:InitDB()
-  self:Print("loaded (v0.1.0-dev)")
+  self:Print("loaded (v0.1.0)")
 end
 
 function SlotPeek:OnEnable()
