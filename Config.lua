@@ -49,11 +49,14 @@ local optionsTable = {
     showItemName = {
       type = "toggle",
       name = "Show item name",
-      desc = "Show each candidate's name between its icon and delta. Rows are wider when enabled. Requires /reload to take effect.",
+      desc = "Show each candidate's name between its icon and delta. Rows are wider when enabled.",
       order = 4,
       width = "full",
       get = function() return SlotPeek.db.profile.showItemName end,
-      set = function(_, v) SlotPeek.db.profile.showItemName = v end,
+      set = function(_, v)
+        SlotPeek.db.profile.showItemName = v
+        SlotPeek.Popout:ApplyLayout()
+      end,
     },
     debug = {
       type = "toggle",

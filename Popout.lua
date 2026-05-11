@@ -68,6 +68,25 @@ local function applyDelta(row, score, equippedScore)
   end
 end
 
+-- Re-apply the inner layout of a row based on the current showItemName
+-- setting. Called once per row at CreateFrame, and again from
+-- Popout:ApplyLayout whenever the user toggles the option. Idempotent.
+local function applyRowLayout(row)
+  local showName = SlotPeek.db and SlotPeek.db.profile.showItemName
+  row:SetWidth(ROW_WIDTH)
+  row.delta:ClearAllPoints()
+  row.name:ClearAllPoints()
+  if showName then
+    row.delta:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+    row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
+    row.name:SetPoint("RIGHT", row.delta, "LEFT", -6, 0)
+    row.name:Show()
+  else
+    row.delta:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
+    row.name:Hide()
+  end
+end
+
 -- Combat-safe model preview helpers.
 -- Both helpers no-op when InCombatLockdown() is true so they never trigger
 -- "Interface action failed because of an AddOn" during combat.
@@ -89,7 +108,6 @@ local function hidePreview()
 end
 
 local function makePreviewRow(parent, index)
-  local showName = SlotPeek.db and SlotPeek.db.profile.showItemName
   local row = CreateFrame("Frame", nil, parent)
   row:SetSize(ROW_WIDTH, ROW_HEIGHT)
   row:SetPoint("TOPLEFT", 8, -28 - (index - 1) * (ROW_HEIGHT + 2))
@@ -104,19 +122,13 @@ local function makePreviewRow(parent, index)
   row.iconBorder:SetSize(22, 22)
   row.iconBorder:SetPoint("CENTER", row.icon, "CENTER")
 
+  -- Both name and delta are always created so the layout can toggle live
+  -- without recreating frames. applyRowLayout handles anchoring + visibility.
   row.delta = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  if showName then
-    -- Wide layout: delta pinned to the right edge; name fills the middle
-    -- and truncates if the item name is long.
-    row.delta:SetPoint("RIGHT", row, "RIGHT", -4, 0)
-    row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-    row.name:SetPoint("RIGHT", row.delta, "LEFT", -6, 0)
-    row.name:SetJustifyH("LEFT")
-    row.name:SetWordWrap(false)
-  else
-    row.delta:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
-  end
+  row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  row.name:SetJustifyH("LEFT")
+  row.name:SetWordWrap(false)
+  applyRowLayout(row)
 
   row.bestBorder = row:CreateTexture(nil, "BACKGROUND")
   row.bestBorder:SetAllPoints(row)
@@ -380,10 +392,8 @@ function Popout:Show(slot, invSlotID)
     row.icon:SetTexture(icon or c.icon)
     local r, g, b = GetItemQualityColor(quality or 1)
     row.iconBorder:SetVertexColor(r, g, b, 1)
-    if row.name then
-      row.name:SetText(itemName or "")
-      row.name:SetTextColor(r, g, b, 1)
-    end
+    row.name:SetText(itemName or "")
+    row.name:SetTextColor(r, g, b, 1)
 
     local score = SlotPeek.PawnAdapter:Score(c.itemLink)
     applyDelta(row, score, equippedScore)
@@ -469,6 +479,27 @@ end
 
 function Popout:RevertModel()
   hidePreview()
+end
+
+-- Live-apply a layout change (showItemName toggle) to all rows + the
+-- secure overlay. Out of combat, this re-anchors everything immediately.
+-- In combat, the secure overlay resize is queued via RunSafe.
+function Popout:ApplyLayout()
+  if not frame then return end
+  ROW_WIDTH = (SlotPeek.db and SlotPeek.db.profile.showItemName)
+              and ROW_WIDTH_WIDE or ROW_WIDTH_COMPACT
+  frame:SetWidth(ROW_WIDTH + 16)
+  for _, row in ipairs(frame.rows) do applyRowLayout(row) end
+  SlotPeek.CombatGuard:RunSafe(function()
+    if not frame.clickContainer then return end
+    frame.clickContainer:SetWidth(ROW_WIDTH + 16)
+    for _, cr in ipairs(frame.clickRows) do cr:SetWidth(ROW_WIDTH) end
+  end)
+  -- If the popout is currently visible, re-Show so row content (item name
+  -- text in particular) refreshes with the new layout.
+  if frame:IsShown() and Popout._lastSlot and Popout._lastInvSlot then
+    Popout:Show(Popout._lastSlot, Popout._lastInvSlot)
+  end
 end
 
 -- Re-score visible rows in place. Called when Pawn finishes resolving items
