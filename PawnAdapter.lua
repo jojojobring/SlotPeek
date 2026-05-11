@@ -9,11 +9,34 @@ function PawnAdapter:IsReady()
   return PawnIsReady and PawnIsReady() or false
 end
 
+-- Resolve the active Pawn scale, in priority order:
+--   1. Explicit user override in db.profile.scaleName
+--   2. Pawn's spec-provided scale for the player's current class + spec
+--   3. First visible scale (legacy behavior)
 function PawnAdapter:ScaleName()
   if SlotPeek.db and SlotPeek.db.profile.scaleName then
     return SlotPeek.db.profile.scaleName
   end
   if not PawnGetAllScales then return nil end
+
+  -- Spec-aware lookup. GetSpecialization is retail; BCC uses
+  -- GetPrimaryTalentTree (or returns nil before talents are spent).
+  if PawnFindScaleForSpec then
+    local _, _, classID = UnitClass("player")
+    local specID
+    if GetSpecialization then
+      specID = GetSpecialization()
+    elseif GetPrimaryTalentTree then
+      specID = GetPrimaryTalentTree()
+    end
+    if classID then
+      local specScale = PawnFindScaleForSpec(classID, specID)
+      if specScale and PawnIsScaleVisible(specScale) then
+        return specScale
+      end
+    end
+  end
+
   -- PawnGetAllScales returns an array of scale name strings (uses tinsert),
   -- so iterate values, not keys.
   for _, name in ipairs(PawnGetAllScales()) do

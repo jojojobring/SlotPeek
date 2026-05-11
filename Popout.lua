@@ -539,6 +539,12 @@ function Popout:OnEnable()
   self:Attach()
   SlotPeek:RegisterMessage("SlotPeek_PAWN_RESOLVED", function() self:RefreshScores() end)
   SlotPeek:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", function() self:RevertModel() end)
+  -- Re-score visible rows when the player's spec changes (talent tree
+  -- update or dual-spec switch in late BCC). Cache is unaffected — only
+  -- the active Pawn scale changes — so RefreshScores is enough.
+  local function onSpecChange() self:RefreshScores() end
+  SlotPeek:RegisterEvent("PLAYER_TALENT_UPDATE", onSpecChange)
+  SlotPeek:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", onSpecChange)
   SlotPeek:RegisterEvent("PLAYER_REGEN_DISABLED", function()
     if frame and frame.combatBadge then frame.combatBadge:Show() end
     -- clickContainer can't be hidden during lockdown (it's protected via
