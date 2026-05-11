@@ -11,6 +11,7 @@ function SlotPeek:OnEnable()
   self.CombatGuard:OnEnable()
   self.BagIndex:OnEnable()
   self.Popout:OnEnable()
+  self.Config:OnEnable()
 end
 
 function SlotPeek:HandleSlash(input)
@@ -18,7 +19,7 @@ function SlotPeek:HandleSlash(input)
   if input == "test" then
     self:RunAssertions()
   elseif input == "config" then
-    self:Print("config UI not yet implemented (Task 21)")
+    self.Config:Open()
   elseif input == "refresh" then
     self.BagIndex:Refresh()
     if BankFrame and BankFrame:IsShown() then

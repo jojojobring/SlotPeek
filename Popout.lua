@@ -310,6 +310,7 @@ function Popout:Attach()
 end
 
 function Popout:OnSlotEnter(slot)
+  if SlotPeek.db and SlotPeek.db.profile.enabled == false then return end
   local invSlotID = SLOT_TO_INVSLOT[slot:GetName()]
   if not invSlotID then return end
   if dismissTimer then dismissTimer:Cancel(); dismissTimer = nil end
