@@ -33,7 +33,11 @@ local SLOT_TO_INVSLOT = {
 }
 
 local ROW_HEIGHT = 24
+-- ROW_WIDTH is set in Popout:CreateFrame from SlotPeek.db.profile.showItemName.
+-- Compact (icon + delta) is 100; wide (icon + name + delta) is 220.
 local ROW_WIDTH = 100
+local ROW_WIDTH_COMPACT = 100
+local ROW_WIDTH_WIDE = 220
 local MAX_ROWS = 30
 
 -- Timer state — declared early so closures inside makePreviewRow / CreateFrame
@@ -85,6 +89,7 @@ local function hidePreview()
 end
 
 local function makePreviewRow(parent, index)
+  local showName = SlotPeek.db and SlotPeek.db.profile.showItemName
   local row = CreateFrame("Frame", nil, parent)
   row:SetSize(ROW_WIDTH, ROW_HEIGHT)
   row:SetPoint("TOPLEFT", 8, -28 - (index - 1) * (ROW_HEIGHT + 2))
@@ -100,7 +105,18 @@ local function makePreviewRow(parent, index)
   row.iconBorder:SetPoint("CENTER", row.icon, "CENTER")
 
   row.delta = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.delta:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
+  if showName then
+    -- Wide layout: delta pinned to the right edge; name fills the middle
+    -- and truncates if the item name is long.
+    row.delta:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+    row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
+    row.name:SetPoint("RIGHT", row.delta, "LEFT", -6, 0)
+    row.name:SetJustifyH("LEFT")
+    row.name:SetWordWrap(false)
+  else
+    row.delta:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
+  end
 
   row.bestBorder = row:CreateTexture(nil, "BACKGROUND")
   row.bestBorder:SetAllPoints(row)
@@ -146,6 +162,8 @@ local function makePreviewRow(parent, index)
 end
 
 function Popout:CreateFrame()
+  ROW_WIDTH = (SlotPeek.db and SlotPeek.db.profile.showItemName)
+              and ROW_WIDTH_WIDE or ROW_WIDTH_COMPACT
   frame = CreateFrame("Frame", "SlotPeekPopoutFrame", UIParent, "BackdropTemplate")
   frame:SetSize(ROW_WIDTH + 16, 40)
   frame:SetFrameStrata("DIALOG")
@@ -357,11 +375,15 @@ function Popout:Show(slot, invSlotID)
   local n = math.min(#cands, MAX_ROWS)
   for i = 1, n do
     local c = cands[i]
-    local _, _, quality, _, _, _, _, _, _, icon = GetItemInfo(c.itemLink)
+    local itemName, _, quality, _, _, _, _, _, _, icon = GetItemInfo(c.itemLink)
     local row = frame.rows[i]
     row.icon:SetTexture(icon or c.icon)
     local r, g, b = GetItemQualityColor(quality or 1)
     row.iconBorder:SetVertexColor(r, g, b, 1)
+    if row.name then
+      row.name:SetText(itemName or "")
+      row.name:SetTextColor(r, g, b, 1)
+    end
 
     local score = SlotPeek.PawnAdapter:Score(c.itemLink)
     applyDelta(row, score, equippedScore)

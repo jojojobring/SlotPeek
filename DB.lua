@@ -2,11 +2,12 @@ local SlotPeek = SlotPeek
 
 local defaults = {
   profile = {
-    enabled    = true,
-    hoverDelay = 0.15,
-    scaleName  = nil,
-    debug      = false,
-    dbVersion  = 1,
+    enabled       = true,
+    hoverDelay    = 0.15,
+    scaleName     = nil,
+    debug         = false,
+    showItemName  = false,
+    dbVersion     = 1,
   },
   char = {
     bankCache = {},

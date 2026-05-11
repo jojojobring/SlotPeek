@@ -46,11 +46,20 @@ local optionsTable = {
         SlotPeek.BagIndex:Refresh()
       end,
     },
+    showItemName = {
+      type = "toggle",
+      name = "Show item name",
+      desc = "Show each candidate's name between its icon and delta. Rows are wider when enabled. Requires /reload to take effect.",
+      order = 4,
+      width = "full",
+      get = function() return SlotPeek.db.profile.showItemName end,
+      set = function(_, v) SlotPeek.db.profile.showItemName = v end,
+    },
     debug = {
       type = "toggle",
       name = "Debug logging",
       desc = "Print diagnostic breadcrumbs to chat.",
-      order = 4,
+      order = 5,
       get = function() return SlotPeek.db.profile.debug end,
       set = function(_, v) SlotPeek.db.profile.debug = v end,
     },
